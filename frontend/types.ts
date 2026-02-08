@@ -48,4 +48,5 @@ export interface WorkoutInstance {
   date: number;
   exercises: InstanceExercise[];
   notes: string;
+  isDraft: boolean;
 }

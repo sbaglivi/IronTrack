@@ -6,13 +6,13 @@ FROM node:18-alpine AS frontend-builder
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY frontend/package*.json ./
 
 # Install dependencies
 RUN npm ci
 
 # Copy frontend source
-COPY . .
+COPY frontend/ .
 
 # Build frontend
 RUN npm run build
@@ -38,7 +38,7 @@ RUN pip install --no-cache-dir -r irontrack/requirements.txt
 COPY irontrack/ ./irontrack/
 
 # Copy built frontend from previous stage
-COPY --from=frontend-builder /app/dist ./dist
+COPY --from=frontend-builder /app/dist ./frontend/dist
 
 # Create directory for SQLite database
 RUN mkdir -p /app/data

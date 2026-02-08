@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, Plus, Save, Trash2, X, MoreVertical, Check, Search, Calendar, Clock } from 'lucide-react';
+import { ChevronLeft, Plus, Save, Trash2, X, MoreVertical, Check, Search, Calendar, Clock, LogOut, AlertTriangle } from 'lucide-react';
 import { db } from '../services/db';
 import { WorkoutInstance, InstanceExercise, WorkoutSet, Exercise, User } from '../types';
 
@@ -9,12 +9,15 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const templateId = searchParams.get('templateId');
+  const resumeDraft = searchParams.get('resumeDraft');
 
   const [name, setName] = useState('');
   const [exercises, setExercises] = useState<InstanceExercise[]>([]);
   const [notes, setNotes] = useState('');
   const [startTime] = useState(Date.now());
+  const [timerOffset, setTimerOffset] = useState(0);
   const [timer, setTimer] = useState(0);
+  const [draftId, setDraftId] = useState<string | null>(null);
 
   // For adding new exercises to the instance
   const [showAddEx, setShowAddEx] = useState(false);
@@ -22,19 +25,55 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   const [exResults, setExResults] = useState<Exercise[]>([]);
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
 
-  useEffect(() => {
-    const interval = setInterval(() => setTimer(Math.floor((Date.now() - startTime) / 1000)), 1000);
-    return () => clearInterval(interval);
-  }, [startTime]);
+  // Navigation guard
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
 
+  // Refs for latest state in event handlers
+  const exercisesRef = useRef(exercises);
+  const notesRef = useRef(notes);
+  const draftIdRef = useRef(draftId);
+  exercisesRef.current = exercises;
+  notesRef.current = notes;
+  draftIdRef.current = draftId;
+
+  // Timer
   useEffect(() => {
-    const loadTemplate = async () => {
+    const interval = setInterval(() => setTimer(timerOffset + Math.floor((Date.now() - startTime) / 1000)), 1000);
+    return () => clearInterval(interval);
+  }, [startTime, timerOffset]);
+
+  // Initialize session: resume draft or create new one
+  useEffect(() => {
+    const initSession = async () => {
+      // Try to resume existing draft
+      if (resumeDraft) {
+        const existingDraft = await db.getDraft(user.id);
+        if (existingDraft) {
+          setName(existingDraft.name);
+          setExercises(existingDraft.exercises);
+          setNotes(existingDraft.notes);
+          setDraftId(existingDraft.id);
+          setTimerOffset(Math.floor((Date.now() - existingDraft.date) / 1000));
+          return;
+        }
+      }
+
+      // Delete any leftover draft before starting fresh
+      const leftoverDraft = await db.getDraft(user.id);
+      if (leftoverDraft) {
+        await db.deleteInstance(leftoverDraft.id);
+      }
+
+      // Build session from template or empty
+      let sessionName = `Workout ${new Intl.DateTimeFormat('en-US').format(new Date())}`;
+      let sessionExercises: InstanceExercise[] = [];
+
       if (templateId) {
         const templates = await db.getTemplates(user.id);
         const template = templates.find(t => t.id === templateId);
         if (template) {
-          setName(template.name);
-          setExercises(template.exercises.map(te => ({
+          sessionName = template.name;
+          sessionExercises = template.exercises.map(te => ({
             exerciseId: te.exerciseId,
             name: te.name,
             sets: Array.from({ length: te.defaultSets }, () => ({
@@ -43,15 +82,33 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
               reps: te.defaultReps || 10,
               completed: false
             }))
-          })));
+          }));
         }
-      } else {
-        setName(`Workout ${new Intl.DateTimeFormat('en-US').format(new Date())}`);
       }
-    };
-    loadTemplate();
-  }, [templateId, user.id]);
 
+      setName(sessionName);
+      setExercises(sessionExercises);
+
+      // Create draft on backend
+      const newDraftId = Math.random().toString(36).substr(2, 9);
+      const draftInstance: WorkoutInstance = {
+        id: newDraftId,
+        userId: user.id,
+        templateId: templateId || undefined,
+        name: sessionName,
+        date: Date.now(),
+        exercises: sessionExercises,
+        notes: '',
+        isDraft: true
+      };
+      await db.saveInstance(draftInstance);
+      setDraftId(newDraftId);
+    };
+
+    initSession();
+  }, [templateId, user.id, resumeDraft]);
+
+  // Load exercises for search
   useEffect(() => {
     const loadExercises = async () => {
       const all = await db.getExercises();
@@ -61,6 +118,92 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
     };
     loadExercises();
   }, [exSearch]);
+
+  // Save draft helper
+  const saveDraft = useCallback(async () => {
+    if (!draftIdRef.current) return;
+    const draft: WorkoutInstance = {
+      id: draftIdRef.current,
+      userId: user.id,
+      templateId: templateId || undefined,
+      name: name || 'Untitled Workout',
+      date: Date.now(),
+      exercises,
+      notes,
+      isDraft: true
+    };
+    try {
+      await db.saveInstance(draft);
+    } catch (err) {
+      console.error('Auto-save failed:', err);
+    }
+  }, [draftId, name, exercises, notes, user.id, templateId]);
+
+  // Auto-save every 30 seconds
+  useEffect(() => {
+    if (!draftId) return;
+    const interval = setInterval(saveDraft, 30_000);
+    return () => clearInterval(interval);
+  }, [draftId, saveDraft]);
+
+  // Save on exercise count change
+  const prevExCountRef = useRef(exercises.length);
+  useEffect(() => {
+    if (!draftId) return;
+    if (exercises.length !== prevExCountRef.current) {
+      prevExCountRef.current = exercises.length;
+      saveDraft();
+    }
+  }, [exercises.length, draftId, saveDraft]);
+
+  // Navigation guard: beforeunload
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (exercisesRef.current.length > 0 || notesRef.current.trim().length > 0) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // Navigation guard: browser back button (popstate)
+  useEffect(() => {
+    window.history.pushState(null, '', window.location.href);
+
+    const handlePopState = () => {
+      if (exercisesRef.current.length > 0 || notesRef.current.trim().length > 0) {
+        window.history.pushState(null, '', window.location.href);
+        setShowDiscardModal(true);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const hasWorkStarted = () => exercises.length > 0 || notes.trim().length > 0;
+
+  const handleAttemptLeave = () => {
+    if (hasWorkStarted()) {
+      setShowDiscardModal(true);
+    } else {
+      if (draftId) db.deleteInstance(draftId);
+      navigate('/');
+    }
+  };
+
+  const handleDiscard = async () => {
+    if (draftId) {
+      await db.deleteInstance(draftId);
+    }
+    navigate('/');
+  };
+
+  const handleSaveAndExit = async () => {
+    await saveDraft();
+    navigate('/');
+  };
 
   const addSet = (exIndex: number) => {
     const newExs = [...exercises];
@@ -120,13 +263,14 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   const finishWorkout = async () => {
     if (exercises.length === 0) return alert('Add at least one exercise');
     const instance: WorkoutInstance = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: draftId || Math.random().toString(36).substr(2, 9),
       userId: user.id,
       templateId: templateId || undefined,
       name: name || 'Untitled Workout',
       date: Date.now(),
       exercises,
-      notes
+      notes,
+      isDraft: false
     };
     await db.saveInstance(instance);
     navigate('/history');
@@ -143,7 +287,7 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
     <div className="space-y-6 pb-24 md:pb-12 animate-in slide-in-from-right-4 duration-300">
       <header className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="text-zinc-500 hover:text-white">
+          <button onClick={handleAttemptLeave} className="text-zinc-500 hover:text-white">
             <X size={24} />
           </button>
           <div className="flex items-center gap-2 bg-indigo-500/10 text-indigo-400 px-4 py-1.5 rounded-full font-mono font-bold text-sm">
@@ -172,33 +316,46 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
                 <Trash2 size={18} />
               </button>
             </div>
-            
+
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-12 gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 px-2">
                 <div className="col-span-1 text-center">Set</div>
-                <div className="col-span-5 text-center">Weight (kg)</div>
-                <div className="col-span-5 text-center">Reps</div>
+                <div className="col-span-4 text-center">Weight (kg)</div>
+                <div className="col-span-4 text-center">Reps</div>
+                <div className="col-span-2 text-center">Done</div>
                 <div className="col-span-1"></div>
               </div>
 
               {ex.sets.map((set, setIdx) => (
-                <div key={set.id} className="grid grid-cols-12 gap-2 items-center p-2 rounded-xl transition-all bg-zinc-950/50">
+                <div key={set.id} className={`grid grid-cols-12 gap-2 items-center p-2 rounded-xl transition-all ${set.completed ? 'bg-emerald-500/5' : 'bg-zinc-950/50'}`}>
                   <div className="col-span-1 text-center font-bold text-zinc-400">{setIdx + 1}</div>
-                  <div className="col-span-5">
+                  <div className="col-span-4">
                     <input
                       type="number"
                       value={set.weight}
                       onChange={(e) => updateSet(exIdx, setIdx, { weight: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-2 text-center font-bold text-white focus:ring-1 focus:ring-indigo-500 outline-none"
+                      className={`w-full bg-zinc-900 border border-zinc-800 rounded-lg py-2 text-center font-bold focus:ring-1 focus:ring-indigo-500 outline-none ${set.completed ? 'text-zinc-500' : 'text-white'}`}
                     />
                   </div>
-                  <div className="col-span-5">
+                  <div className="col-span-4">
                     <input
                       type="number"
                       value={set.reps}
                       onChange={(e) => updateSet(exIdx, setIdx, { reps: parseInt(e.target.value) || 0 })}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-2 text-center font-bold text-white focus:ring-1 focus:ring-indigo-500 outline-none"
+                      className={`w-full bg-zinc-900 border border-zinc-800 rounded-lg py-2 text-center font-bold focus:ring-1 focus:ring-indigo-500 outline-none ${set.completed ? 'text-zinc-500' : 'text-white'}`}
                     />
+                  </div>
+                  <div className="col-span-2 flex justify-center">
+                    <button
+                      onClick={() => updateSet(exIdx, setIdx, { completed: !set.completed })}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                        set.completed
+                          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                          : 'bg-zinc-800 text-zinc-600 hover:bg-zinc-700 hover:text-zinc-400'
+                      }`}
+                    >
+                      <Check size={16} strokeWidth={3} />
+                    </button>
                   </div>
                   <div className="col-span-1 flex justify-center">
                     <button
@@ -293,6 +450,45 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
                   <p className="p-10 text-center text-zinc-500 text-sm">Type an exercise name to search or create a new one.</p>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Discard/Save Confirmation Modal */}
+      {showDiscardModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-zinc-900 w-full max-w-sm rounded-[2.5rem] border border-zinc-800 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
+            <div className="p-8 text-center space-y-4">
+              <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center mx-auto">
+                <AlertTriangle size={32} className="text-amber-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white">Leave Workout?</h3>
+              <p className="text-zinc-400 text-sm">
+                You have an active workout in progress. What would you like to do?
+              </p>
+            </div>
+            <div className="p-6 pt-0 space-y-3">
+              <button
+                onClick={handleSaveAndExit}
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <Save size={18} />
+                Save & Exit
+              </button>
+              <button
+                onClick={handleDiscard}
+                className="w-full py-4 bg-red-600/10 hover:bg-red-600/20 border border-red-600/30 text-red-400 font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <Trash2 size={18} />
+                Discard Workout
+              </button>
+              <button
+                onClick={() => setShowDiscardModal(false)}
+                className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all active:scale-[0.98]"
+              >
+                Keep Working
+              </button>
             </div>
           </div>
         </div>

@@ -8,13 +8,18 @@ import { WorkoutInstance, User } from '../types';
 const Home: React.FC<{ user: User }> = ({ user }) => {
   const navigate = useNavigate();
   const [recentWorkouts, setRecentWorkouts] = useState<WorkoutInstance[]>([]);
+  const [draft, setDraft] = useState<WorkoutInstance | null>(null);
 
   useEffect(() => {
-    const loadWorkouts = async () => {
-      const instances = await db.getInstances(user.id);
+    const loadData = async () => {
+      const [instances, existingDraft] = await Promise.all([
+        db.getInstances(user.id),
+        db.getDraft(user.id),
+      ]);
       setRecentWorkouts(instances.slice(0, 3));
+      setDraft(existingDraft);
     };
-    loadWorkouts();
+    loadData();
   }, [user.id]);
 
   const formatDate = (ts: number) => {
@@ -27,6 +32,25 @@ const Home: React.FC<{ user: User }> = ({ user }) => {
         <h1 className="text-3xl font-bold tracking-tight">Welcome back, {user.username}</h1>
         <p className="text-zinc-400">Ready to crush your session?</p>
       </header>
+
+      {/* Resume Draft Banner */}
+      {draft && (
+        <button
+          onClick={() => navigate('/workout/new?resumeDraft=true')}
+          className="w-full p-6 bg-amber-500/10 border border-amber-500/30 rounded-3xl flex items-center justify-between group hover:bg-amber-500/20 transition-all active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-4">
+            <div className="bg-amber-500/20 p-3 rounded-2xl">
+              <Play className="text-amber-400" size={24} />
+            </div>
+            <div className="text-left">
+              <h3 className="text-lg font-bold text-amber-400">Resume Workout</h3>
+              <p className="text-zinc-400 text-sm">{draft.name} &middot; {draft.exercises.length} exercise{draft.exercises.length !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
+          <ChevronRight className="text-amber-400 group-hover:translate-x-1 transition-transform" />
+        </button>
+      )}
 
       {/* Primary Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

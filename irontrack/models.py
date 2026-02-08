@@ -47,6 +47,7 @@ class WorkoutInstance(Base):
     date = Column(Integer, nullable=False, index=True)
     exercises = Column(Text, nullable=False)  # JSON array of InstanceExercise
     notes = Column(Text, default="")
+    is_draft = Column(Boolean, nullable=False, default=False, server_default="0")
 
     user = relationship("User", back_populates="instances")
 

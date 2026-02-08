@@ -85,12 +85,14 @@ class WorkoutInstanceCreate(BaseModel):
     date: int
     exercises: List[InstanceExercise]
     notes: str = ""
+    isDraft: bool = False
 
 class WorkoutInstanceUpdate(BaseModel):
     name: Optional[str] = None
     date: Optional[int] = None
     exercises: Optional[List[InstanceExercise]] = None
     notes: Optional[str] = None
+    isDraft: Optional[bool] = None
 
 class WorkoutInstanceResponse(BaseModel):
     id: str
@@ -100,6 +102,7 @@ class WorkoutInstanceResponse(BaseModel):
     date: int
     exercises: List[InstanceExercise]
     notes: str
+    isDraft: bool
 
     class Config:
         from_attributes = True

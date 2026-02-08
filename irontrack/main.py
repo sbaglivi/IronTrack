@@ -34,7 +34,7 @@ def api_root():
     return {"message": "IronTrack API", "version": "1.0.0"}
 
 # Serve static files (production build)
-DIST_DIR = Path(__file__).parent.parent / "dist"
+DIST_DIR = Path(__file__).parent.parent / "frontend" / "dist"
 if DIST_DIR.exists():
     # Mount static assets (JS, CSS, images)
     app.mount("/assets", StaticFiles(directory=DIST_DIR / "assets"), name="assets")
@@ -51,6 +51,24 @@ else:
     @app.get("/")
     def root():
         return {"message": "IronTrack API - Build frontend first: npm run build", "version": "1.0.0"}
+
+@app.on_event("startup")
+def run_migrations():
+    """Add is_draft column to workout_instances if it doesn't exist"""
+    from sqlalchemy import text, inspect
+    db_session = next(get_db())
+    try:
+        inspector = inspect(engine)
+        columns = [col["name"] for col in inspector.get_columns("workout_instances")]
+        if "is_draft" not in columns:
+            db_session.execute(text(
+                'ALTER TABLE workout_instances ADD COLUMN is_draft BOOLEAN NOT NULL DEFAULT 0'
+            ))
+            db_session.commit()
+    except Exception:
+        pass  # Table may not exist yet (first run), create_all handles it
+    finally:
+        db_session.close()
 
 @app.on_event("startup")
 def seed_initial_data():

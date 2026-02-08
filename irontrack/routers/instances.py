@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from irontrack.database import get_db
 from irontrack import models, schemas
 from irontrack.auth import get_current_user
@@ -10,13 +10,17 @@ router = APIRouter(prefix="/instances", tags=["instances"])
 
 @router.get("/", response_model=List[schemas.WorkoutInstanceResponse])
 def get_instances(
+    include_drafts: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
     # Get all instances for current user, sorted by date descending
-    instances = db.query(models.WorkoutInstance).filter(
+    query = db.query(models.WorkoutInstance).filter(
         models.WorkoutInstance.user_id == current_user.id
-    ).order_by(models.WorkoutInstance.date.desc()).all()
+    )
+    if not include_drafts:
+        query = query.filter(models.WorkoutInstance.is_draft == False)
+    instances = query.order_by(models.WorkoutInstance.date.desc()).all()
 
     # Convert to response format
     result = []
@@ -28,9 +32,32 @@ def get_instances(
             "name": i.name,
             "date": i.date,
             "exercises": i.get_exercises(),
-            "notes": i.notes
+            "notes": i.notes,
+            "isDraft": i.is_draft
         })
     return result
+
+@router.get("/draft", response_model=Optional[schemas.WorkoutInstanceResponse])
+def get_draft(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    draft = db.query(models.WorkoutInstance).filter(
+        models.WorkoutInstance.user_id == current_user.id,
+        models.WorkoutInstance.is_draft == True
+    ).order_by(models.WorkoutInstance.date.desc()).first()
+    if not draft:
+        return None
+    return {
+        "id": draft.id,
+        "userId": draft.user_id,
+        "templateId": draft.template_id,
+        "name": draft.name,
+        "date": draft.date,
+        "exercises": draft.get_exercises(),
+        "notes": draft.notes,
+        "isDraft": draft.is_draft
+    }
 
 @router.get("/{instance_id}", response_model=schemas.WorkoutInstanceResponse)
 def get_instance(
@@ -53,7 +80,8 @@ def get_instance(
         "name": instance.name,
         "date": instance.date,
         "exercises": instance.get_exercises(),
-        "notes": instance.notes
+        "notes": instance.notes,
+        "isDraft": instance.is_draft
     }
 
 @router.post("/", response_model=schemas.WorkoutInstanceResponse)
@@ -68,7 +96,8 @@ def create_instance(
         template_id=instance_data.templateId,
         name=instance_data.name,
         date=instance_data.date,
-        notes=instance_data.notes
+        notes=instance_data.notes,
+        is_draft=instance_data.isDraft
     )
     instance.set_exercises([ex.dict() for ex in instance_data.exercises])
 
@@ -83,7 +112,8 @@ def create_instance(
         "name": instance.name,
         "date": instance.date,
         "exercises": instance.get_exercises(),
-        "notes": instance.notes
+        "notes": instance.notes,
+        "isDraft": instance.is_draft
     }
 
 @router.put("/{instance_id}", response_model=schemas.WorkoutInstanceResponse)
@@ -110,6 +140,8 @@ def update_instance(
         instance.set_exercises([ex.dict() for ex in instance_data.exercises])
     if instance_data.notes is not None:
         instance.notes = instance_data.notes
+    if instance_data.isDraft is not None:
+        instance.is_draft = instance_data.isDraft
 
     db.commit()
     db.refresh(instance)
@@ -121,7 +153,8 @@ def update_instance(
         "name": instance.name,
         "date": instance.date,
         "exercises": instance.get_exercises(),
-        "notes": instance.notes
+        "notes": instance.notes,
+        "isDraft": instance.is_draft
     }
 
 @router.delete("/{instance_id}")

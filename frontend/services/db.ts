@@ -155,6 +155,7 @@ class DBService {
           date: instance.date,
           exercises: instance.exercises,
           notes: instance.notes,
+          isDraft: instance.isDraft,
         }),
       });
     } catch {
@@ -167,8 +168,17 @@ class DBService {
           date: instance.date,
           exercises: instance.exercises,
           notes: instance.notes,
+          isDraft: instance.isDraft,
         }),
       });
+    }
+  }
+
+  async getDraft(userId: string): Promise<WorkoutInstance | null> {
+    try {
+      return await fetchWithAuth(`${API_URL}/instances/draft`);
+    } catch {
+      return null;
     }
   }
 
