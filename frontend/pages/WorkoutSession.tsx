@@ -101,8 +101,8 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
         notes: '',
         isDraft: true
       };
-      await db.saveInstance(draftInstance);
-      setDraftId(newDraftId);
+      const saved = await db.saveInstance(draftInstance);
+      setDraftId(saved.id);
     };
 
     initSession();
@@ -133,7 +133,10 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
       isDraft: true
     };
     try {
-      await db.saveInstance(draft);
+      const saved = await db.saveInstance(draft);
+      if (saved.id !== draftIdRef.current) {
+        setDraftId(saved.id);
+      }
     } catch (err) {
       console.error('Auto-save failed:', err);
     }
@@ -272,7 +275,7 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
       notes,
       isDraft: false
     };
-    await db.saveInstance(instance);
+    const saved = await db.saveInstance(instance);
     navigate('/history');
   };
 

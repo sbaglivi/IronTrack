@@ -143,12 +143,12 @@ class DBService {
     return fetchWithAuth(`${API_URL}/instances/${id}`);
   }
 
-  async saveInstance(instance: WorkoutInstance): Promise<void> {
+  async saveInstance(instance: WorkoutInstance): Promise<WorkoutInstance> {
     // Check if instance exists by trying to fetch it
     try {
       await this.getInstance(instance.id);
       // Instance exists, update it
-      await fetchWithAuth(`${API_URL}/instances/${instance.id}`, {
+      return await fetchWithAuth(`${API_URL}/instances/${instance.id}`, {
         method: 'PUT',
         body: JSON.stringify({
           name: instance.name,
@@ -160,7 +160,7 @@ class DBService {
       });
     } catch {
       // Instance doesn't exist, create it
-      await fetchWithAuth(`${API_URL}/instances/`, {
+      return await fetchWithAuth(`${API_URL}/instances/`, {
         method: 'POST',
         body: JSON.stringify({
           templateId: instance.templateId,
