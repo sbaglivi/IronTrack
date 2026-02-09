@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Plus, Search, Trash2, Save, X, Info } from 'lucide-react';
 import { db } from '../services/db';
 import { WorkoutTemplate, TemplateExercise, Exercise, User } from '../types';
+import NumericInput from '../components/NumericInput';
 
 const TemplateEditor: React.FC<{ user: User }> = ({ user }) => {
   const navigate = useNavigate();
@@ -169,28 +170,26 @@ const TemplateEditor: React.FC<{ user: User }> = ({ user }) => {
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Sets</span>
-                    <input
-                      type="number"
+                    <NumericInput
                       value={ex.defaultSets}
-                      onChange={(e) => updateExercise(idx, { defaultSets: parseInt(e.target.value) || 0 })}
+                      onChange={(v) => updateExercise(idx, { defaultSets: v })}
                       className="w-16 bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-center text-sm font-bold"
                     />
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-zinc-500 uppercase font-bold tracking-widest">KG</span>
-                    <input
-                      type="number"
+                    <NumericInput
                       value={ex.defaultWeight}
-                      onChange={(e) => updateExercise(idx, { defaultWeight: parseInt(e.target.value) || 0 })}
+                      allowDecimal
+                      onChange={(v) => updateExercise(idx, { defaultWeight: v })}
                       className="w-16 bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-center text-sm font-bold"
                     />
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Reps</span>
-                    <input
-                      type="number"
+                    <NumericInput
                       value={ex.defaultReps}
-                      onChange={(e) => updateExercise(idx, { defaultReps: parseInt(e.target.value) || 0 })}
+                      onChange={(v) => updateExercise(idx, { defaultReps: v })}
                       className="w-16 bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-center text-sm font-bold"
                     />
                   </div>

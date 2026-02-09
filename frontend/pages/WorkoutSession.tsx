@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Plus, Save, Trash2, X, MoreVertical, Check, Search, Calendar, Clock, LogOut, AlertTriangle } from 'lucide-react';
 import { db } from '../services/db';
 import { WorkoutInstance, InstanceExercise, WorkoutSet, Exercise, User } from '../types';
+import NumericInput from '../components/NumericInput';
 
 const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   const navigate = useNavigate();
@@ -333,18 +334,17 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
                 <div key={set.id} className={`grid grid-cols-12 gap-2 items-center p-2 rounded-xl transition-all ${set.completed ? 'bg-emerald-500/5' : 'bg-zinc-950/50'}`}>
                   <div className="col-span-1 text-center font-bold text-zinc-400">{setIdx + 1}</div>
                   <div className="col-span-4">
-                    <input
-                      type="number"
+                    <NumericInput
                       value={set.weight}
-                      onChange={(e) => updateSet(exIdx, setIdx, { weight: parseFloat(e.target.value) || 0 })}
+                      allowDecimal
+                      onChange={(v) => updateSet(exIdx, setIdx, { weight: v })}
                       className={`w-full bg-zinc-900 border border-zinc-800 rounded-lg py-2 text-center font-bold focus:ring-1 focus:ring-indigo-500 outline-none ${set.completed ? 'text-zinc-500' : 'text-white'}`}
                     />
                   </div>
                   <div className="col-span-4">
-                    <input
-                      type="number"
+                    <NumericInput
                       value={set.reps}
-                      onChange={(e) => updateSet(exIdx, setIdx, { reps: parseInt(e.target.value) || 0 })}
+                      onChange={(v) => updateSet(exIdx, setIdx, { reps: v })}
                       className={`w-full bg-zinc-900 border border-zinc-800 rounded-lg py-2 text-center font-bold focus:ring-1 focus:ring-indigo-500 outline-none ${set.completed ? 'text-zinc-500' : 'text-white'}`}
                     />
                   </div>
