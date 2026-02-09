@@ -1,3 +1,4 @@
+import os
 import hashlib
 import secrets
 from datetime import datetime, timedelta
@@ -11,7 +12,7 @@ from irontrack import models
 from irontrack.database import get_db
 
 # Secret key for JWT - in production, use environment variable
-SECRET_KEY = "your-secret-key-here-change-in-production"
+SECRET_KEY = os.environ.get("SECRET_KEY", "your-secret-key-here-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 43200  # 30 days
 

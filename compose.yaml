@@ -1,0 +1,12 @@
+services:
+  irontrack:
+    image: sbaglivi/irontrack
+    container_name: irontrack
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      DATABASE_PATH: /app/data/irontrack.db
+      SECRET_KEY: ${SECRET_KEY}
+    restart: unless-stopped
