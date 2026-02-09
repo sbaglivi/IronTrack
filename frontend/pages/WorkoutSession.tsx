@@ -3,14 +3,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Plus, Save, Trash2, X, MoreVertical, Check, Search, Calendar, Clock, LogOut, AlertTriangle } from 'lucide-react';
 import { db } from '../services/db';
-import { WorkoutInstance, InstanceExercise, WorkoutSet, Exercise, User } from '../types';
+import { InstanceExercise, WorkoutSet, Exercise, User } from '../types';
 import NumericInput from '../components/NumericInput';
 
 const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const templateId = searchParams.get('templateId');
-  const resumeDraft = searchParams.get('resumeDraft');
+  const draftIdParam = searchParams.get('draftId');
 
   const [name, setName] = useState('');
   const [exercises, setExercises] = useState<InstanceExercise[]>([]);
@@ -29,13 +29,21 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   // Navigation guard
   const [showDiscardModal, setShowDiscardModal] = useState(false);
 
+  // Tracks whether the user has made any modification this session
+  const hasModified = useRef(false);
+
   // Refs for latest state in event handlers
   const exercisesRef = useRef(exercises);
   const notesRef = useRef(notes);
+  const nameRef = useRef(name);
   const draftIdRef = useRef(draftId);
   exercisesRef.current = exercises;
   notesRef.current = notes;
+  nameRef.current = name;
   draftIdRef.current = draftId;
+
+  // Original workout date (preserved across saves)
+  const sessionDate = useRef(Date.now());
 
   // Timer
   useEffect(() => {
@@ -43,24 +51,31 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
     return () => clearInterval(interval);
   }, [startTime, timerOffset]);
 
-  // Initialize session: resume draft or create new one
+  // Initialize session: resume draft or start fresh
   useEffect(() => {
     const initSession = async () => {
-      // Try to resume existing draft
-      if (resumeDraft) {
-        const existingDraft = await db.getDraft(user.id);
-        if (existingDraft) {
-          setName(existingDraft.name);
-          setExercises(existingDraft.exercises);
-          setNotes(existingDraft.notes);
-          setDraftId(existingDraft.id);
-          setTimerOffset(Math.floor((Date.now() - existingDraft.date) / 1000));
-          return;
+      if (draftIdParam) {
+        // Resume existing draft by ID
+        try {
+          const existingDraft = await db.getInstance(draftIdParam);
+          if (existingDraft && existingDraft.isDraft) {
+            setName(existingDraft.name);
+            setExercises(existingDraft.exercises);
+            setNotes(existingDraft.notes);
+            setDraftId(existingDraft.id);
+            sessionDate.current = existingDraft.date;
+            setTimerOffset(Math.floor((Date.now() - existingDraft.date) / 1000));
+            // Resumed draft counts as having work to preserve
+            hasModified.current = true;
+            return;
+          }
+        } catch {
+          // Draft not found, fall through to create fresh session
         }
       }
 
-      // Delete any leftover draft before starting fresh
-      const leftoverDraft = await db.getDraft(user.id);
+      // Clean up any leftover draft before starting fresh
+      const leftoverDraft = await db.getDraft();
       if (leftoverDraft) {
         await db.deleteInstance(leftoverDraft.id);
       }
@@ -89,25 +104,12 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
 
       setName(sessionName);
       setExercises(sessionExercises);
-
-      // Create draft on backend
-      const newDraftId = Math.random().toString(36).substr(2, 9);
-      const draftInstance: WorkoutInstance = {
-        id: newDraftId,
-        userId: user.id,
-        templateId: templateId || undefined,
-        name: sessionName,
-        date: Date.now(),
-        exercises: sessionExercises,
-        notes: '',
-        isDraft: true
-      };
-      const saved = await db.saveInstance(draftInstance);
-      setDraftId(saved.id);
+      sessionDate.current = Date.now();
+      // No draft created yet — will be created on first user modification
     };
 
     initSession();
-  }, [templateId, user.id, resumeDraft]);
+  }, [templateId, user.id, draftIdParam]);
 
   // Load exercises for search
   useEffect(() => {
@@ -120,50 +122,59 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
     loadExercises();
   }, [exSearch]);
 
-  // Save draft helper
+  // Save draft: creates if no draftId, updates if exists. Uses refs for latest state.
   const saveDraft = useCallback(async () => {
-    if (!draftIdRef.current) return;
-    const draft: WorkoutInstance = {
-      id: draftIdRef.current,
+    if (!hasModified.current) return;
+
+    const currentDraftId = draftIdRef.current;
+    const draftData = {
       userId: user.id,
       templateId: templateId || undefined,
-      name: name || 'Untitled Workout',
-      date: Date.now(),
-      exercises,
-      notes,
-      isDraft: true
+      name: nameRef.current || 'Untitled Workout',
+      date: sessionDate.current,
+      exercises: exercisesRef.current,
+      notes: notesRef.current,
+      isDraft: true as const,
     };
+
     try {
-      const saved = await db.saveInstance(draft);
-      if (saved.id !== draftIdRef.current) {
+      if (currentDraftId) {
+        const saved = await db.saveInstance({ id: currentDraftId, ...draftData });
+        if (saved.id !== currentDraftId) setDraftId(saved.id);
+      } else {
+        const saved = await db.createInstance(draftData);
         setDraftId(saved.id);
       }
     } catch (err) {
       console.error('Auto-save failed:', err);
     }
-  }, [draftId, name, exercises, notes, user.id, templateId]);
+  }, [user.id, templateId]);
 
-  // Auto-save every 30 seconds
+  // Mark session as modified and schedule a debounced save
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const markDirty = useCallback(() => {
+    hasModified.current = true;
+    clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(saveDraft, 500);
+  }, [saveDraft]);
+
+  // Cleanup save timeout on unmount
   useEffect(() => {
-    if (!draftId) return;
-    const interval = setInterval(saveDraft, 30_000);
+    return () => clearTimeout(saveTimeoutRef.current);
+  }, []);
+
+  // Auto-save every 30 seconds (only if modified)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (hasModified.current && draftIdRef.current) saveDraft();
+    }, 30_000);
     return () => clearInterval(interval);
-  }, [draftId, saveDraft]);
-
-  // Save on exercise count change
-  const prevExCountRef = useRef(exercises.length);
-  useEffect(() => {
-    if (!draftId) return;
-    if (exercises.length !== prevExCountRef.current) {
-      prevExCountRef.current = exercises.length;
-      saveDraft();
-    }
-  }, [exercises.length, draftId, saveDraft]);
+  }, [saveDraft]);
 
   // Navigation guard: beforeunload
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (exercisesRef.current.length > 0 || notesRef.current.trim().length > 0) {
+      if (hasModified.current) {
         e.preventDefault();
       }
     };
@@ -176,30 +187,29 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
     window.history.pushState(null, '', window.location.href);
 
     const handlePopState = () => {
-      if (exercisesRef.current.length > 0 || notesRef.current.trim().length > 0) {
+      if (hasModified.current) {
         window.history.pushState(null, '', window.location.href);
         setShowDiscardModal(true);
+      } else {
+        navigate('/');
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  const hasWorkStarted = () => exercises.length > 0 || notes.trim().length > 0;
+  }, [navigate]);
 
   const handleAttemptLeave = () => {
-    if (hasWorkStarted()) {
+    if (hasModified.current) {
       setShowDiscardModal(true);
     } else {
-      if (draftId) db.deleteInstance(draftId);
       navigate('/');
     }
   };
 
   const handleDiscard = async () => {
-    if (draftId) {
-      await db.deleteInstance(draftId);
+    if (draftIdRef.current) {
+      await db.deleteInstance(draftIdRef.current);
     }
     navigate('/');
   };
@@ -219,18 +229,21 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
       completed: false
     });
     setExercises(newExs);
+    markDirty();
   };
 
   const updateSet = (exIndex: number, setIndex: number, updates: Partial<WorkoutSet>) => {
     const newExs = [...exercises];
     newExs[exIndex].sets[setIndex] = { ...newExs[exIndex].sets[setIndex], ...updates };
     setExercises(newExs);
+    markDirty();
   };
 
   const removeSet = (exIndex: number, setIndex: number) => {
     const newExs = [...exercises];
     newExs[exIndex].sets = newExs[exIndex].sets.filter((_, i) => i !== setIndex);
     setExercises(newExs);
+    markDirty();
   };
 
   const addExercise = async (ex: Exercise | string) => {
@@ -256,27 +269,44 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
     }]);
     setShowAddEx(false);
     setExSearch('');
+    markDirty();
   };
 
   const removeExercise = (index: number) => {
     if (confirm('Remove this exercise from session?')) {
       setExercises(exercises.filter((_, i) => i !== index));
+      markDirty();
     }
+  };
+
+  const handleNameChange = (newName: string) => {
+    setName(newName);
+    markDirty();
+  };
+
+  const handleNotesChange = (newNotes: string) => {
+    setNotes(newNotes);
+    markDirty();
   };
 
   const finishWorkout = async () => {
     if (exercises.length === 0) return alert('Add at least one exercise');
-    const instance: WorkoutInstance = {
-      id: draftId || Math.random().toString(36).substr(2, 9),
+
+    const instanceData = {
       userId: user.id,
       templateId: templateId || undefined,
       name: name || 'Untitled Workout',
-      date: Date.now(),
+      date: sessionDate.current,
       exercises,
       notes,
-      isDraft: false
+      isDraft: false as const,
     };
-    const saved = await db.saveInstance(instance);
+
+    if (draftIdRef.current) {
+      await db.saveInstance({ id: draftIdRef.current, ...instanceData });
+    } else {
+      await db.createInstance(instanceData);
+    }
     navigate('/history');
   };
 
@@ -305,7 +335,7 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
         <input
           type="text"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => handleNameChange(e.target.value)}
           className="text-3xl font-extrabold bg-transparent outline-none w-full border-b border-transparent focus:border-zinc-800 transition-colors text-white"
           placeholder="Workout Name"
         />
@@ -395,7 +425,7 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
           <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">Notes</label>
           <textarea
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(e) => handleNotesChange(e.target.value)}
             className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none min-h-[100px]"
             placeholder="How did it feel today?"
           />

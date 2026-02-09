@@ -14,7 +14,7 @@ const Home: React.FC<{ user: User }> = ({ user }) => {
     const loadData = async () => {
       const [instances, existingDraft] = await Promise.all([
         db.getInstances(user.id),
-        db.getDraft(user.id),
+        db.getDraft(),
       ]);
       setRecentWorkouts(instances.slice(0, 3));
       setDraft(existingDraft);
@@ -36,7 +36,7 @@ const Home: React.FC<{ user: User }> = ({ user }) => {
       {/* Resume Draft Banner */}
       {draft && (
         <button
-          onClick={() => navigate('/workout/new?resumeDraft=true')}
+          onClick={() => navigate(`/workout/new?draftId=${draft!.id}`)}
           className="w-full p-6 bg-amber-500/10 border border-amber-500/30 rounded-3xl flex items-center justify-between group hover:bg-amber-500/20 transition-all active:scale-[0.98]"
         >
           <div className="flex items-center gap-4">

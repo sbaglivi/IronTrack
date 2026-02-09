@@ -174,12 +174,26 @@ class DBService {
     }
   }
 
-  async getDraft(userId: string): Promise<WorkoutInstance | null> {
+  async getDraft(): Promise<WorkoutInstance | null> {
     try {
       return await fetchWithAuth(`${API_URL}/instances/draft`);
     } catch {
       return null;
     }
+  }
+
+  async createInstance(instance: Omit<WorkoutInstance, 'id'>): Promise<WorkoutInstance> {
+    return await fetchWithAuth(`${API_URL}/instances/`, {
+      method: 'POST',
+      body: JSON.stringify({
+        templateId: instance.templateId,
+        name: instance.name,
+        date: instance.date,
+        exercises: instance.exercises,
+        notes: instance.notes,
+        isDraft: instance.isDraft,
+      }),
+    });
   }
 
   async deleteInstance(id: string): Promise<void> {
