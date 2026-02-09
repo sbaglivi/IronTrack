@@ -1,13 +1,14 @@
+import uuid
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from irontrack.database import engine, Base, get_db
-from irontrack.routers import auth, exercises, templates, instances
+from fastapi.staticfiles import StaticFiles
+
 from irontrack import models
-import uuid
-import os
-from pathlib import Path
+from irontrack.database import Base, engine, get_db
+from irontrack.routers import auth, exercises, instances, templates
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -55,7 +56,7 @@ else:
 @app.on_event("startup")
 def run_migrations():
     """Add is_draft column to workout_instances if it doesn't exist"""
-    from sqlalchemy import text, inspect
+    from sqlalchemy import inspect, text
     db_session = next(get_db())
     try:
         inspector = inspect(engine)

@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import uuid
+
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from typing import List
-from irontrack.database import get_db
+
 from irontrack import models, schemas
 from irontrack.auth import get_current_user
-import uuid
+from irontrack.database import get_db
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
 
-@router.get("/", response_model=List[schemas.ExerciseResponse])
+@router.get("/", response_model=list[schemas.ExerciseResponse])
 def get_exercises(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)

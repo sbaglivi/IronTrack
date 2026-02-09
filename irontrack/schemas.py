@@ -1,5 +1,6 @@
+
 from pydantic import BaseModel
-from typing import List, Optional
+
 
 # User schemas
 class UserCreate(BaseModel):
@@ -46,19 +47,19 @@ class TemplateExercise(BaseModel):
 # Workout Template schemas
 class WorkoutTemplateCreate(BaseModel):
     name: str
-    exercises: List[TemplateExercise]
+    exercises: list[TemplateExercise]
     isPublic: bool = False
 
 class WorkoutTemplateUpdate(BaseModel):
-    name: Optional[str] = None
-    exercises: Optional[List[TemplateExercise]] = None
-    isPublic: Optional[bool] = None
+    name: str | None = None
+    exercises: list[TemplateExercise] | None = None
+    isPublic: bool | None = None
 
 class WorkoutTemplateResponse(BaseModel):
     id: str
     userId: str
     name: str
-    exercises: List[TemplateExercise]
+    exercises: list[TemplateExercise]
     isPublic: bool
     createdAt: int
 
@@ -76,31 +77,31 @@ class WorkoutSet(BaseModel):
 class InstanceExercise(BaseModel):
     exerciseId: str
     name: str
-    sets: List[WorkoutSet]
+    sets: list[WorkoutSet]
 
 # Workout Instance schemas
 class WorkoutInstanceCreate(BaseModel):
-    templateId: Optional[str] = None
+    templateId: str | None = None
     name: str
     date: int
-    exercises: List[InstanceExercise]
+    exercises: list[InstanceExercise]
     notes: str = ""
     isDraft: bool = False
 
 class WorkoutInstanceUpdate(BaseModel):
-    name: Optional[str] = None
-    date: Optional[int] = None
-    exercises: Optional[List[InstanceExercise]] = None
-    notes: Optional[str] = None
-    isDraft: Optional[bool] = None
+    name: str | None = None
+    date: int | None = None
+    exercises: list[InstanceExercise] | None = None
+    notes: str | None = None
+    isDraft: bool | None = None
 
 class WorkoutInstanceResponse(BaseModel):
     id: str
     userId: str
-    templateId: Optional[str] = None
+    templateId: str | None = None
     name: str
     date: int
-    exercises: List[InstanceExercise]
+    exercises: list[InstanceExercise]
     notes: str
     isDraft: bool
 

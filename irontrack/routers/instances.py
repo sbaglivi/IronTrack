@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
-from irontrack.database import get_db
+
 from irontrack import models, schemas
 from irontrack.auth import get_current_user
-import uuid
+from irontrack.database import get_db
 
 router = APIRouter(prefix="/instances", tags=["instances"])
 
-@router.get("/", response_model=List[schemas.WorkoutInstanceResponse])
+@router.get("/", response_model=list[schemas.WorkoutInstanceResponse])
 def get_instances(
     include_drafts: bool = Query(False),
     db: Session = Depends(get_db),
@@ -19,7 +20,7 @@ def get_instances(
         models.WorkoutInstance.user_id == current_user.id
     )
     if not include_drafts:
-        query = query.filter(models.WorkoutInstance.is_draft == False)
+        query = query.filter(models.WorkoutInstance.is_draft.is_(False))
     instances = query.order_by(models.WorkoutInstance.date.desc()).all()
 
     # Convert to response format
@@ -37,14 +38,14 @@ def get_instances(
         })
     return result
 
-@router.get("/draft", response_model=Optional[schemas.WorkoutInstanceResponse])
+@router.get("/draft", response_model=schemas.WorkoutInstanceResponse | None)
 def get_draft(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
     draft = db.query(models.WorkoutInstance).filter(
         models.WorkoutInstance.user_id == current_user.id,
-        models.WorkoutInstance.is_draft == True
+        models.WorkoutInstance.is_draft.is_(True)
     ).order_by(models.WorkoutInstance.date.desc()).first()
     if not draft:
         return None

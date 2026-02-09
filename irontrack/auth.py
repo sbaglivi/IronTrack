@@ -1,13 +1,14 @@
-from datetime import datetime, timedelta
-from typing import Optional
 import hashlib
 import secrets
-from jose import JWTError, jwt
+from datetime import datetime, timedelta
+
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
-from irontrack.database import get_db
+
 from irontrack import models
+from irontrack.database import get_db
 
 # Secret key for JWT - in production, use environment variable
 SECRET_KEY = "your-secret-key-here-change-in-production"
@@ -47,7 +48,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     except (ValueError, AttributeError):
         return False
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta

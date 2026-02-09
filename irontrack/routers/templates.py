@@ -1,16 +1,17 @@
+import time
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from sqlalchemy import or_
-from typing import List
-from irontrack.database import get_db
+from sqlalchemy.orm import Session
+
 from irontrack import models, schemas
 from irontrack.auth import get_current_user
-import uuid
-import time
+from irontrack.database import get_db
 
 router = APIRouter(prefix="/templates", tags=["templates"])
 
-@router.get("/", response_model=List[schemas.WorkoutTemplateResponse])
+@router.get("/", response_model=list[schemas.WorkoutTemplateResponse])
 def get_templates(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
@@ -19,7 +20,7 @@ def get_templates(
     templates = db.query(models.WorkoutTemplate).filter(
         or_(
             models.WorkoutTemplate.user_id == current_user.id,
-            models.WorkoutTemplate.is_public == True
+            models.WorkoutTemplate.is_public.is_(True)
         )
     ).all()
 

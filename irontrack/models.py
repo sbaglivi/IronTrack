@@ -1,7 +1,10 @@
-from sqlalchemy import Column, String, Boolean, Integer, ForeignKey, Text
-from sqlalchemy.orm import relationship
-from irontrack.database import Base
 import json
+
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+
+from irontrack.database import Base
+
 
 class User(Base):
     __tablename__ = "users"

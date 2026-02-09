@@ -1,9 +1,11 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from irontrack.database import get_db
+
 from irontrack import models, schemas
-from irontrack.auth import get_password_hash, verify_password, create_access_token, get_current_user
-import uuid
+from irontrack.auth import create_access_token, get_current_user, get_password_hash, verify_password
+from irontrack.database import get_db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

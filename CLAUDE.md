@@ -43,3 +43,7 @@ After making changes, always verify both components still work:
 **Frontend:** Run `cd frontend && npm run build` — this catches TypeScript and build errors (do NOT use `tsc --noEmit` directly; it misses Vite-specific types). Successful build means no errors.
 
 **Backend:** Run `uv run --directory irontrack uvicorn irontrack.main:app --app-dir . --port 8000` from the project root and confirm it starts (check `curl localhost:8000/api`). The `irontrack` package needs the project root on the Python path (hence `--app-dir .`).
+
+**Lint:** Run `cd irontrack && uv run ruff check .` — all checks must pass with zero errors.
+
+**Tests:** Run `cd irontrack && uv run pytest` — all tests must pass.
