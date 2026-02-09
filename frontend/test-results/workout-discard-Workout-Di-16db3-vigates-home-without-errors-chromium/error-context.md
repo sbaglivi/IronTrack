@@ -1,0 +1,76 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - heading "IronTrack" [level=1] [ref=e13]
+    - navigation [ref=e14]:
+      - link "Home" [ref=e15] [cursor=pointer]:
+        - /url: "#/"
+        - img [ref=e16]
+        - generic [ref=e19]: Home
+      - link "Templates" [ref=e20] [cursor=pointer]:
+        - /url: "#/templates"
+        - img [ref=e21]
+        - generic [ref=e24]: Templates
+      - link "History" [ref=e25] [cursor=pointer]:
+        - /url: "#/history"
+        - img [ref=e26]
+        - generic [ref=e30]: History
+    - button "Sign Out" [ref=e31] [cursor=pointer]:
+      - img [ref=e32]
+      - generic [ref=e35]: Sign Out
+  - main [ref=e36]:
+    - generic [ref=e37]:
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - button [ref=e40] [cursor=pointer]:
+            - img [ref=e41]
+          - generic [ref=e44]:
+            - img [ref=e45]
+            - text: 00:10
+          - button "Finish" [ref=e48] [cursor=pointer]
+        - textbox "Workout Name" [ref=e49]: Workout 2/9/2026
+      - generic [ref=e51]:
+        - generic [ref=e52]:
+          - heading "Bench Press" [level=3] [ref=e53]
+          - button [ref=e54] [cursor=pointer]:
+            - img [ref=e55]
+        - generic [ref=e58]:
+          - generic [ref=e59]:
+            - generic [ref=e60]: Set
+            - generic [ref=e61]: Weight (kg)
+            - generic [ref=e62]: Reps
+            - generic [ref=e63]: Done
+          - generic [ref=e65]:
+            - generic [ref=e66]: "1"
+            - spinbutton [ref=e68]: "0"
+            - spinbutton [ref=e70]: "10"
+            - button [ref=e72] [cursor=pointer]:
+              - img [ref=e73]
+            - button [ref=e76] [cursor=pointer]:
+              - img [ref=e77]
+          - button "+ Add Set" [ref=e80] [cursor=pointer]
+      - generic [ref=e81]:
+        - button "Add Exercise" [ref=e82] [cursor=pointer]:
+          - img [ref=e83]
+          - text: Add Exercise
+        - generic [ref=e84]:
+          - generic [ref=e85]: Notes
+          - textbox "How did it feel today?" [ref=e86]
+      - generic [ref=e88]:
+        - generic [ref=e89]:
+          - img [ref=e91]
+          - heading "Leave Workout?" [level=3] [ref=e93]
+          - paragraph [ref=e94]: You have an active workout in progress. What would you like to do?
+        - generic [ref=e95]:
+          - button "Save & Exit" [ref=e96] [cursor=pointer]:
+            - img [ref=e97]
+            - text: Save & Exit
+          - button "Discard Workout" [active] [ref=e101] [cursor=pointer]:
+            - img [ref=e102]
+            - text: Discard Workout
+          - button "Keep Working" [ref=e105] [cursor=pointer]
+```

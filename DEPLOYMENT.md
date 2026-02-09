@@ -2,7 +2,7 @@
 
 ## Build
 docker build \
-    --platform linux/amd64 \
+    --platform linux/arm64 \
     --tag sbaglivi/irontrack:latest \
     --push \
     .
