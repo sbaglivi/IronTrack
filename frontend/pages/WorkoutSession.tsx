@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'wouter';
 import { Plus, Save, Trash2, X, MoreVertical, Search, Clock, AlertTriangle, CheckCircle2, Check, GripVertical } from 'lucide-react';
 import { db } from '../services/db';
 import { InstanceExercise, WorkoutSet, Exercise, User } from '../types';
 import NumericInput from '../components/NumericInput';
 
 const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
   const [searchParams] = useSearchParams();
   const templateId = searchParams.get('templateId');
   const draftIdParam = searchParams.get('draftId');

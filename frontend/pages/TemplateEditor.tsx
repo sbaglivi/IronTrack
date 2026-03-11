@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'wouter';
 import { ChevronLeft, Plus, Search, Trash2, Save, X, Info } from 'lucide-react';
 import { db } from '../services/db';
 import { WorkoutTemplate, TemplateExercise, Exercise, User } from '../types';
 import NumericInput from '../components/NumericInput';
 
 const TemplateEditor: React.FC<{ user: User }> = ({ user }) => {
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
   const { id } = useParams();
   const isEditing = !!id;
 

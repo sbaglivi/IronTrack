@@ -9,15 +9,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@preact/preset-vite": "^2.10.3",
     "lucide-react": "^0.563.0",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "react-router-dom": "^7.13.0"
+    "preact": "^10.29.0",
+    "wouter": "^3.9.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

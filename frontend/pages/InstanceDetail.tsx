@@ -1,13 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useLocation } from 'wouter';
 import { ChevronLeft, Calendar, Clock, Clipboard, FileText, Trash2 } from 'lucide-react';
 import { db } from '../services/db';
 import { WorkoutInstance, User } from '../types';
 
 const InstanceDetail: React.FC<{ user: User }> = ({ user }) => {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
   const [instance, setInstance] = useState<WorkoutInstance | null>(null);
 
   useEffect(() => {

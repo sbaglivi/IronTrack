@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { Calendar, ChevronRight, Search, Trash2, ArrowUpDown, Clock } from 'lucide-react';
 import { db } from '../services/db';
 import { WorkoutInstance, User } from '../types';
 
 const History: React.FC<{ user: User }> = ({ user }) => {
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
   const [history, setHistory] = useState<WorkoutInstance[]>([]);
   const [filteredHistory, setFilteredHistory] = useState<WorkoutInstance[]>([]);
   const [searchTerm, setSearchTerm] = useState('');

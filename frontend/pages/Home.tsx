@@ -1,12 +1,12 @@
 
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useLocation, Link } from 'wouter';
 import { Plus, Play, ClipboardList, ChevronRight, History as HistoryIcon, Clock, Calendar } from 'lucide-react';
 import { db } from '../services/db';
 import { WorkoutInstance, User } from '../types';
 
 const Home: React.FC<{ user: User }> = ({ user }) => {
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
   const [recentWorkouts, setRecentWorkouts] = useState<WorkoutInstance[]>([]);
   const [draft, setDraft] = useState<WorkoutInstance | null>(null);
 

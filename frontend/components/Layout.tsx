@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'wouter';
 import { Home, ClipboardList, History, LogOut, Dumbbell } from 'lucide-react';
 import { db } from '../services/db';
 
@@ -11,7 +11,7 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
-  const location = useLocation();
+  const [location] = useLocation();
 
   const navItems = [
     { path: '/', icon: Home, label: 'Home' },
@@ -21,7 +21,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
 
   if (!user) return <>{children}</>;
 
-  const isWorkout = location.pathname.startsWith('/workout');
+  const isWorkout = location.startsWith('/workout');
 
   return (
     <div className={`flex flex-col min-h-screen bg-zinc-950 ${isWorkout ? '' : 'pb-20 md:pb-0 md:pl-64'}`}>
@@ -37,7 +37,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
         <nav className="flex-1 space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = location === item.path;
             return (
               <Link
                 key={item.path}
@@ -71,7 +71,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
       <nav className={`${isWorkout ? 'hidden' : ''} md:hidden fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 flex justify-around items-center h-16 px-4 z-50`}>
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path;
+          const isActive = location === item.path;
           return (
             <Link
               key={item.path}

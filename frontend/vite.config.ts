@@ -1,6 +1,6 @@
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
-import react from '@vitejs/plugin-react';
+import preact from '@preact/preset-vite';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => {
           '/instances': 'http://localhost:8000',
         },
       },
-      plugins: [react()],
+      plugins: [preact()],
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

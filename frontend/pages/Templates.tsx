@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { Plus, Search, Copy, Edit2, Trash2, Globe, Lock, Play, X, Check, ClipboardList } from 'lucide-react';
 import { db } from '../services/db';
 import { WorkoutTemplate, Exercise, User } from '../types';
 
 const Templates: React.FC<{ user: User }> = ({ user }) => {
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null);
