@@ -7,7 +7,6 @@ import Auth from './pages/Auth';
 import { db } from './services/db';
 import { User } from './types';
 
-const Home = lazy(() => import('./pages/Home'));
 const Templates = lazy(() => import('./pages/Templates'));
 const TemplateEditor = lazy(() => import('./pages/TemplateEditor'));
 const WorkoutSession = lazy(() => import('./pages/WorkoutSession'));
@@ -36,7 +35,7 @@ const App = () => {
       <Layout user={user} onLogout={handleLogout}>
         <Suspense fallback={null}>
           <Switch>
-            <Route path="/">{() => <Home user={user} />}</Route>
+            <Route path="/">{() => <Redirect to="/templates" />}</Route>
             <Route path="/templates">{() => <Templates user={user} />}</Route>
             <Route path="/templates/new">{() => <TemplateEditor user={user} />}</Route>
             <Route path="/templates/edit/:id">{() => <TemplateEditor user={user} />}</Route>

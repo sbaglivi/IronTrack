@@ -1,7 +1,7 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Fragment } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { ChevronLeft, Calendar, Clock, Clipboard, FileText, Trash2 } from 'lucide-react';
+import { ChevronLeft, Calendar, Clock, Clipboard, FileText, Trash2, Link2 } from 'lucide-react';
 import { db } from '../services/db';
 import { WorkoutInstance, User } from '../types';
 
@@ -68,11 +68,32 @@ const InstanceDetail: React.FC<{ user: User }> = ({ user }) => {
         </div>
       </section>
 
-      <div className="space-y-6">
-        {instance.exercises.map((ex, exIdx) => (
-          <div key={exIdx} className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
+      <div className="flex flex-col gap-0">
+        {instance.exercises.map((ex, exIdx) => {
+          const isInSuperset = !!ex.supersetId;
+          const isFirstInGroup = isInSuperset && (exIdx === 0 || instance.exercises[exIdx - 1].supersetId !== ex.supersetId);
+          const linkedToPrev = isInSuperset && exIdx > 0 && instance.exercises[exIdx - 1].supersetId === ex.supersetId;
+          return (
+          <Fragment key={exIdx}>
+          {exIdx > 0 && (
+            <div className={`flex items-center gap-2 px-4 ${linkedToPrev ? 'my-0.5' : 'my-3'}`}>
+              <div className={`flex-1 h-px ${linkedToPrev ? 'bg-indigo-500/30' : 'bg-zinc-800'}`} />
+              {linkedToPrev && <Link2 size={10} className="text-indigo-400/60 shrink-0" />}
+              <div className={`flex-1 h-px ${linkedToPrev ? 'bg-indigo-500/30' : 'bg-zinc-800'}`} />
+            </div>
+          )}
+          <div className={`bg-zinc-900 rounded-3xl overflow-hidden ${
+            isInSuperset ? 'border border-indigo-500/30 border-l-2 border-l-indigo-500' : 'border border-zinc-800'
+          }`}>
             <div className="bg-zinc-800/50 p-5 border-b border-zinc-800">
-              <h3 className="text-xl font-bold text-indigo-400">{ex.name}</h3>
+              <div className="flex items-center gap-2">
+                {isFirstInGroup && (
+                  <span className="text-[9px] font-black uppercase tracking-widest text-indigo-300 bg-indigo-500/15 px-1.5 py-0.5 rounded">
+                    Superset
+                  </span>
+                )}
+                <h3 className="text-xl font-bold text-indigo-400">{ex.name}</h3>
+              </div>
             </div>
             <div className="p-5">
               <table className="w-full text-left">
@@ -95,7 +116,8 @@ const InstanceDetail: React.FC<{ user: User }> = ({ user }) => {
               </table>
             </div>
           </div>
-        ))}
+          </Fragment>
+        );})}
       </div>
 
       {instance.notes && (

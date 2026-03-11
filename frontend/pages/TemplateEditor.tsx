@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Fragment } from 'react';
 import { useLocation, useParams } from 'wouter';
-import { ChevronLeft, Plus, Search, Trash2, Save, X, Info } from 'lucide-react';
+import { ChevronLeft, Plus, Search, Trash2, Save, X, Info, Link2 } from 'lucide-react';
 import { db } from '../services/db';
 import { WorkoutTemplate, TemplateExercise, Exercise, User } from '../types';
 import NumericInput from '../components/NumericInput';
@@ -81,7 +81,33 @@ const TemplateEditor: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const removeExercise = (index: number) => {
-    setExercises(exercises.filter((_, i) => i !== index));
+    let newExs = exercises.filter((_, i) => i !== index);
+    const counts = new Map<string, number>();
+    newExs.forEach(e => { if (e.supersetId) counts.set(e.supersetId, (counts.get(e.supersetId) ?? 0) + 1); });
+    newExs = newExs.map(e => e.supersetId && counts.get(e.supersetId)! < 2 ? { ...e, supersetId: undefined } : e);
+    setExercises(newExs);
+  };
+
+  const toggleSuperset = (idx: number) => {
+    const newExs = [...exercises];
+    const a = newExs[idx];
+    const b = newExs[idx + 1];
+    if (a.supersetId && a.supersetId === b.supersetId) {
+      const groupId = a.supersetId;
+      const newGroupId = Math.random().toString(36).substr(2, 9);
+      for (let i = idx + 1; i < newExs.length; i++) {
+        if (newExs[i].supersetId === groupId) newExs[i] = { ...newExs[i], supersetId: newGroupId };
+      }
+      for (const id of [groupId, newGroupId]) {
+        if (newExs.filter(e => e.supersetId === id).length < 2)
+          newExs.forEach((e, i) => { if (e.supersetId === id) newExs[i] = { ...e, supersetId: undefined }; });
+      }
+    } else {
+      const supersetId = a.supersetId || b.supersetId || Math.random().toString(36).substr(2, 9);
+      newExs[idx] = { ...newExs[idx], supersetId };
+      newExs[idx + 1] = { ...newExs[idx + 1], supersetId };
+    }
+    setExercises(newExs);
   };
 
   const updateExercise = (index: number, updates: Partial<TemplateExercise>) => {
@@ -162,11 +188,41 @@ const TemplateEditor: React.FC<{ user: User }> = ({ user }) => {
       <section className="space-y-4">
         <h2 className="text-xl font-bold px-2">Exercises</h2>
         
-        <div className="space-y-3">
-          {exercises.map((ex, idx) => (
-            <div key={idx} className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-left-2 duration-300">
+        <div className="flex flex-col">
+          {exercises.map((ex, idx) => {
+            const isInSuperset = !!ex.supersetId;
+            const isFirstInGroup = isInSuperset && (idx === 0 || exercises[idx - 1].supersetId !== ex.supersetId);
+            const linkedToPrev = isInSuperset && idx > 0 && exercises[idx - 1].supersetId === ex.supersetId;
+            return (
+            <Fragment key={idx}>
+            {idx > 0 && (
+              <div className={`flex items-center gap-2 px-3 relative z-10 ${linkedToPrev ? 'my-0.5' : 'my-2'}`}>
+                <div className={`flex-1 h-px ${linkedToPrev ? 'bg-indigo-500/30' : 'bg-transparent'}`} />
+                <button
+                  onClick={() => toggleSuperset(idx - 1)}
+                  className={`flex items-center justify-center w-5 h-5 rounded-full border transition-all ${
+                    linkedToPrev
+                      ? 'border-indigo-500/60 text-indigo-400 bg-indigo-500/10 hover:bg-red-500/10 hover:border-red-500/40 hover:text-red-400'
+                      : 'border-zinc-700 text-zinc-600 hover:border-zinc-500 hover:text-zinc-400'
+                  }`}
+                >
+                  <Link2 size={10} />
+                </button>
+                <div className={`flex-1 h-px ${linkedToPrev ? 'bg-indigo-500/30' : 'bg-transparent'}`} />
+              </div>
+            )}
+            <div className={`p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-left-2 duration-300 ${
+              isInSuperset ? 'bg-zinc-900 border border-indigo-500/30 border-l-2 border-l-indigo-500' : 'bg-zinc-900 border border-zinc-800'
+            }`}>
               <div className="flex-1">
-                <h4 className="font-bold text-lg mb-2">{ex.name}</h4>
+                <div className="flex items-center gap-2 mb-2">
+                  {isFirstInGroup && (
+                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-300 bg-indigo-500/15 px-1.5 py-0.5 rounded">
+                      Superset
+                    </span>
+                  )}
+                  <h4 className="font-bold text-lg">{ex.name}</h4>
+                </div>
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Sets</span>
@@ -202,7 +258,9 @@ const TemplateEditor: React.FC<{ user: User }> = ({ user }) => {
                 <Trash2 size={20} />
               </button>
             </div>
-          ))}
+            </Fragment>
+          );})}
+
 
           {/* Add Exercise Search */}
           <div className="relative" ref={searchRef}>

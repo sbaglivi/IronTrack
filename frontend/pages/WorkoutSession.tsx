@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { useLocation, useSearchParams } from 'wouter';
-import { Plus, Save, Trash2, X, MoreVertical, Search, Clock, AlertTriangle, CheckCircle2, Check, GripVertical } from 'lucide-react';
+import { Plus, Save, Trash2, X, MoreVertical, Search, Clock, AlertTriangle, CheckCircle2, Check, GripVertical, Link2 } from 'lucide-react';
 import { db } from '../services/db';
 import { InstanceExercise, WorkoutSet, Exercise, User } from '../types';
 import NumericInput from '../components/NumericInput';
@@ -99,6 +99,7 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
           sessionExercises = template.exercises.map(te => ({
             exerciseId: te.exerciseId,
             name: te.name,
+            supersetId: te.supersetId,
             sets: Array.from({ length: te.defaultSets }, () => ({
               id: Math.random().toString(36).substr(2, 9),
               weight: te.defaultWeight,
@@ -286,11 +287,13 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
 
   const removeExercise = (index: number) => {
     if (confirm('Remove this exercise from session?')) {
-      if (selectionExIdx === index) {
-        setSelectionExIdx(null);
-        setSelectedSetIds(new Set());
-      }
-      setExercises(exercises.filter((_, i) => i !== index));
+      if (selectionExIdx === index) clearSelection();
+      let newExs = exercises.filter((_, i) => i !== index);
+      // Clean up supersets that now have only 1 member
+      const counts = new Map<string, number>();
+      newExs.forEach(e => { if (e.supersetId) counts.set(e.supersetId, (counts.get(e.supersetId) ?? 0) + 1); });
+      newExs = newExs.map(e => e.supersetId && counts.get(e.supersetId)! < 2 ? { ...e, supersetId: undefined } : e);
+      setExercises(newExs);
       markDirty();
     }
   };
@@ -298,6 +301,29 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   const clearSelection = () => {
     setSelectionExIdx(null);
     setSelectedSetIds(new Set());
+  };
+
+  const toggleSuperset = (idx: number) => {
+    const newExs = [...exercises];
+    const a = newExs[idx];
+    const b = newExs[idx + 1];
+    if (a.supersetId && a.supersetId === b.supersetId) {
+      const groupId = a.supersetId;
+      const newGroupId = Math.random().toString(36).substr(2, 9);
+      for (let i = idx + 1; i < newExs.length; i++) {
+        if (newExs[i].supersetId === groupId) newExs[i] = { ...newExs[i], supersetId: newGroupId };
+      }
+      for (const id of [groupId, newGroupId]) {
+        if (newExs.filter(e => e.supersetId === id).length < 2)
+          newExs.forEach((e, i) => { if (e.supersetId === id) newExs[i] = { ...e, supersetId: undefined }; });
+      }
+    } else {
+      const supersetId = a.supersetId || b.supersetId || Math.random().toString(36).substr(2, 9);
+      newExs[idx] = { ...newExs[idx], supersetId };
+      newExs[idx + 1] = { ...newExs[idx + 1], supersetId };
+    }
+    setExercises(newExs);
+    markDirty();
   };
 
   const removeSelectedSets = () => {
@@ -397,11 +423,34 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
         />
       </header>
 
-      <div className="space-y-3">
+      <div className="flex flex-col">
         {exercises.map((ex, exIdx) => {
           const isSelecting = selectionExIdx === exIdx;
+          const isInSuperset = !!ex.supersetId;
+          const isFirstInGroup = isInSuperset && (exIdx === 0 || exercises[exIdx - 1].supersetId !== ex.supersetId);
+          const nextEx = exercises[exIdx + 1];
+          const isLinkedToNext = isInSuperset && nextEx?.supersetId === ex.supersetId;
           return (
-          <section key={exIdx} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
+          <Fragment key={exIdx}>
+          {exIdx > 0 && (
+            <div className={`flex items-center gap-2 px-3 relative z-10 ${isInSuperset && exercises[exIdx - 1].supersetId === ex.supersetId ? 'my-0.5' : 'my-2'}`}>
+              <div className={`flex-1 h-px ${isInSuperset && exercises[exIdx - 1].supersetId === ex.supersetId ? 'bg-indigo-500/30' : 'bg-transparent'}`} />
+              <button
+                onClick={() => toggleSuperset(exIdx - 1)}
+                className={`flex items-center justify-center w-5 h-5 rounded-full border transition-all ${
+                  isInSuperset && exercises[exIdx - 1].supersetId === ex.supersetId
+                    ? 'border-indigo-500/60 text-indigo-400 bg-indigo-500/10 hover:bg-red-500/10 hover:border-red-500/40 hover:text-red-400'
+                    : 'border-zinc-700 text-zinc-600 hover:border-zinc-500 hover:text-zinc-400'
+                }`}
+              >
+                <Link2 size={10} />
+              </button>
+              <div className={`flex-1 h-px ${isInSuperset && exercises[exIdx - 1].supersetId === ex.supersetId ? 'bg-indigo-500/30' : 'bg-transparent'}`} />
+            </div>
+          )}
+          <section className={`bg-zinc-900 rounded-2xl overflow-hidden shadow-sm ${
+            isInSuperset ? 'border border-indigo-500/30 border-l-2 border-l-indigo-500' : 'border border-zinc-800'
+          }`}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-zinc-800/20">
               {isSelecting ? (
                 <>
@@ -419,8 +468,15 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
                 </>
               ) : (
                 <>
-                  <h3 className="text-base font-bold text-indigo-400">{ex.name}</h3>
-                  <button onClick={() => removeExercise(exIdx)} className="text-zinc-500 hover:text-red-400 transition-colors">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {isFirstInGroup && (
+                      <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-indigo-300 bg-indigo-500/15 px-1.5 py-0.5 rounded">
+                        Superset
+                      </span>
+                    )}
+                    <h3 className="text-base font-bold text-indigo-400 truncate">{ex.name}</h3>
+                  </div>
+                  <button onClick={() => removeExercise(exIdx)} className="text-zinc-500 hover:text-red-400 transition-colors ml-2 shrink-0">
                     <Trash2 size={16} />
                   </button>
                 </>
@@ -489,6 +545,7 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
               </button>
             </div>
           </section>
+          </Fragment>
         )})}
       </div>
 

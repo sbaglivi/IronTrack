@@ -25,7 +25,7 @@ Improvements:
     input (seconds) instead of reps input
 
 ## Not started
-- [ ] supersets
+- [x] supersets
   - Link exercises together with an optional `supersetId: string` on InstanceExercise
     and TemplateExercise (stored in JSON, no DB migration needed)
   - Exercises sharing the same supersetId form a superset group
@@ -37,10 +37,8 @@ Improvements:
   - Editing weight or reps updates all selected sets
   - Header shows "N selected" + X to cancel; delete button hidden while selecting
   - Mass delete: not included (remove sets individually)
-- [ ] redesign the home page — the primary action is starting a workout from a template,
-  so the flow should guide towards that; concretely:
-  - if the user has no templates yet: prompt to create one first
-  - if the user has templates: show them prominently with a "Start" button each
-  - remove or demote the "Start Empty Workout" option (power-user escape hatch at most)
-  - keep the draft resume banner if a draft exists
-  - recent workout history can stay but as a secondary element
+- [x] redesign the home page — removed entirely; `/` redirects to `/templates`
+  - Templates is now the landing page with Start buttons on each
+  - "Start Empty Workout" demoted to small text link in header
+  - Draft resume banner pinned above bottom nav on mobile, static at bottom on desktop
+  - Home nav item removed; logo links to /templates

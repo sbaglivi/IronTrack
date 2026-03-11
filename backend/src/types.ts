@@ -6,6 +6,7 @@ export interface TemplateExercise {
   defaultSets: number;
   defaultWeight: number;
   defaultReps: number;
+  supersetId?: string;
 }
 
 export interface SetEntry {
@@ -19,6 +20,7 @@ export interface InstanceExercise {
   exerciseId: string;
   name: string;
   sets: SetEntry[];
+  supersetId?: string;
 }
 
 // ---- API request bodies ----

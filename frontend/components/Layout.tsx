@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { Home, ClipboardList, History, LogOut, Dumbbell } from 'lucide-react';
+import { ClipboardList, History, LogOut, Dumbbell } from 'lucide-react';
 import { db } from '../services/db';
 
 interface LayoutProps {
@@ -14,7 +14,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
   const [location] = useLocation();
 
   const navItems = [
-    { path: '/', icon: Home, label: 'Home' },
     { path: '/templates', icon: ClipboardList, label: 'Templates' },
     { path: '/history', icon: History, label: 'History' },
   ];
@@ -27,12 +26,12 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
     <div className={`flex flex-col min-h-screen bg-zinc-950 ${isWorkout ? '' : 'pb-20 md:pb-0 md:pl-64'}`}>
       {/* Desktop Sidebar */}
       <aside className={`${isWorkout ? 'hidden' : 'hidden md:flex'} flex-col fixed left-0 top-0 bottom-0 w-64 bg-zinc-900 border-r border-zinc-800 p-6`}>
-        <div className="flex items-center gap-3 mb-10">
+        <Link to="/templates" className="flex items-center gap-3 mb-10">
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
             <Dumbbell className="text-white w-6 h-6" />
           </div>
           <h1 className="text-xl font-bold tracking-tight">IronTrack</h1>
-        </div>
+        </Link>
 
         <nav className="flex-1 space-y-2">
           {navItems.map((item) => {
@@ -69,6 +68,13 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
 
       {/* Mobile Bottom Nav */}
       <nav className={`${isWorkout ? 'hidden' : ''} md:hidden fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 flex justify-around items-center h-16 px-4 z-50`}>
+        <button
+          onClick={onLogout}
+          className="flex flex-col items-center justify-center w-full h-full space-y-1 text-zinc-500"
+        >
+          <LogOut size={24} />
+          <span className="text-[10px] uppercase font-bold tracking-wider">Out</span>
+        </button>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.path;
@@ -85,13 +91,6 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
             </Link>
           );
         })}
-        <button
-          onClick={onLogout}
-          className="flex flex-col items-center justify-center w-full h-full space-y-1 text-zinc-500"
-        >
-          <LogOut size={24} />
-          <span className="text-[10px] uppercase font-bold tracking-wider">Out</span>
-        </button>
       </nav>
     </div>
   );

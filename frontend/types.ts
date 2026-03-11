@@ -18,6 +18,7 @@ export interface TemplateExercise {
   defaultSets: number;
   defaultWeight: number;
   defaultReps: number;
+  supersetId?: string;
 }
 
 export interface WorkoutTemplate {
@@ -40,6 +41,7 @@ export interface InstanceExercise {
   exerciseId: string;
   name: string;
   sets: WorkoutSet[];
+  supersetId?: string;
 }
 
 export interface WorkoutInstance {
