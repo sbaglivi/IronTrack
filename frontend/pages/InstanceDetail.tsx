@@ -78,17 +78,17 @@ const InstanceDetail: React.FC<{ user: User }> = ({ user }) => {
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-[10px] uppercase font-black tracking-widest text-zinc-500">
-                    <th className="pb-4 w-12">Set</th>
-                    <th className="pb-4">Weight</th>
-                    <th className="pb-4">Reps</th>
+                    <th className="pb-2 w-12">Set</th>
+                    <th className="pb-2">Weight</th>
+                    <th className="pb-2">Reps</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800">
                   {ex.sets.map((set, setIdx) => (
-                    <tr key={set.id} className={set.completed ? '' : 'opacity-40'}>
-                      <td className="py-4 font-mono text-zinc-500">{setIdx + 1}</td>
-                      <td className="py-4 font-bold text-lg">{set.weight} <span className="text-xs font-normal text-zinc-500">kg</span></td>
-                      <td className="py-4 font-bold text-lg">{set.reps} <span className="text-xs font-normal text-zinc-500">reps</span></td>
+                    <tr key={set.id}>
+                      <td className="py-2 font-mono text-zinc-500">{setIdx + 1}</td>
+                      <td className="py-2 font-bold text-lg">{set.weight} <span className="text-xs font-normal text-zinc-500">kg</span></td>
+                      <td className="py-2 font-bold text-lg">{set.reps} <span className="text-xs font-normal text-zinc-500">reps</span></td>
                     </tr>
                   ))}
                 </tbody>

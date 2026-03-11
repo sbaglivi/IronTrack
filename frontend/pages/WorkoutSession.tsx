@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, Plus, Save, Trash2, X, MoreVertical, Check, Search, Calendar, Clock, LogOut, AlertTriangle } from 'lucide-react';
+import { Plus, Save, Trash2, X, MoreVertical, Search, Clock, AlertTriangle, CheckCircle2, Check, GripVertical } from 'lucide-react';
 import { db } from '../services/db';
 import { InstanceExercise, WorkoutSet, Exercise, User } from '../types';
 import NumericInput from '../components/NumericInput';
@@ -26,8 +26,15 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   const [exResults, setExResults] = useState<Exercise[]>([]);
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
 
+  // Multi-set selection
+  const [selectionExIdx, setSelectionExIdx] = useState<number | null>(null);
+  const [selectedSetIds, setSelectedSetIds] = useState<Set<string>>(new Set());
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFiredRef = useRef(false);
+
   // Navigation guard
   const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [showFinishModal, setShowFinishModal] = useState(false);
 
   // Tracks whether the user has made any modification this session
   const hasModified = useRef(false);
@@ -96,7 +103,6 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
               id: Math.random().toString(36).substr(2, 9),
               weight: te.defaultWeight,
               reps: te.defaultReps || 10,
-              completed: false
             }))
           }));
         }
@@ -226,7 +232,6 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
       id: Math.random().toString(36).substr(2, 9),
       weight: lastSet ? lastSet.weight : 0,
       reps: lastSet ? lastSet.reps : 10,
-      completed: false
     });
     setExercises(newExs);
     markDirty();
@@ -234,7 +239,14 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
 
   const updateSet = (exIndex: number, setIndex: number, updates: Partial<WorkoutSet>) => {
     const newExs = [...exercises];
-    newExs[exIndex].sets[setIndex] = { ...newExs[exIndex].sets[setIndex], ...updates };
+    const setId = newExs[exIndex].sets[setIndex].id;
+    if (selectionExIdx === exIndex && selectedSetIds.has(setId)) {
+      newExs[exIndex].sets = newExs[exIndex].sets.map(s =>
+        selectedSetIds.has(s.id) ? { ...s, ...updates } : s
+      );
+    } else {
+      newExs[exIndex].sets[setIndex] = { ...newExs[exIndex].sets[setIndex], ...updates };
+    }
     setExercises(newExs);
     markDirty();
   };
@@ -265,7 +277,7 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
     setExercises([...exercises, {
       exerciseId: finalEx.id,
       name: finalEx.name,
-      sets: [{ id: Math.random().toString(36).substr(2, 9), weight: 0, reps: 10, completed: false }]
+      sets: [{ id: Math.random().toString(36).substr(2, 9), weight: 0, reps: 10 }]
     }]);
     setShowAddEx(false);
     setExSearch('');
@@ -274,9 +286,61 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
 
   const removeExercise = (index: number) => {
     if (confirm('Remove this exercise from session?')) {
+      if (selectionExIdx === index) {
+        setSelectionExIdx(null);
+        setSelectedSetIds(new Set());
+      }
       setExercises(exercises.filter((_, i) => i !== index));
       markDirty();
     }
+  };
+
+  const clearSelection = () => {
+    setSelectionExIdx(null);
+    setSelectedSetIds(new Set());
+  };
+
+  const removeSelectedSets = () => {
+    if (selectionExIdx === null) return;
+    const newExs = [...exercises];
+    newExs[selectionExIdx].sets = newExs[selectionExIdx].sets.filter(s => !selectedSetIds.has(s.id));
+    setExercises(newExs);
+    markDirty();
+    clearSelection();
+  };
+
+  const handleSetPointerDown = (exIdx: number, setId: string) => {
+    longPressFiredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      setSelectionExIdx(exIdx);
+      setSelectedSetIds(new Set([setId]));
+    }, 500);
+  };
+
+  const handleSetPointerUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleSetClick = (exIdx: number, setId: string) => {
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false;
+      return;
+    }
+    if (selectionExIdx !== exIdx) return;
+    setSelectedSetIds(prev => {
+      const next = new Set(prev);
+      if (next.has(setId)) {
+        next.delete(setId);
+        if (next.size === 0) setSelectionExIdx(null);
+      } else {
+        next.add(setId);
+      }
+      return next;
+    });
   };
 
   const handleNameChange = (newName: string) => {
@@ -289,8 +353,12 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
     markDirty();
   };
 
-  const finishWorkout = async () => {
+  const handleFinishClick = () => {
     if (exercises.length === 0) return alert('Add at least one exercise');
+    setShowFinishModal(true);
+  };
+
+  const finishWorkout = async () => {
 
     const instanceData = {
       userId: user.id,
@@ -318,20 +386,8 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   };
 
   return (
-    <div className="space-y-6 pb-24 md:pb-12 animate-in slide-in-from-right-4 duration-300">
-      <header className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <button onClick={handleAttemptLeave} className="text-zinc-500 hover:text-white">
-            <X size={24} />
-          </button>
-          <div className="flex items-center gap-2 bg-indigo-500/10 text-indigo-400 px-4 py-1.5 rounded-full font-mono font-bold text-sm">
-            <Clock size={16} />
-            {formatTimer(timer)}
-          </div>
-          <button onClick={finishWorkout} className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl font-bold shadow-lg shadow-indigo-600/20 active:scale-95 transition-all">
-            Finish
-          </button>
-        </div>
+    <div className="space-y-6 pb-20 animate-in slide-in-from-right-4 duration-300">
+      <header>
         <input
           type="text"
           value={name}
@@ -341,75 +397,99 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
         />
       </header>
 
-      <div className="space-y-6">
-        {exercises.map((ex, exIdx) => (
-          <section key={exIdx} className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
-            <div className="flex items-center justify-between p-5 border-b border-zinc-800 bg-zinc-800/20">
-              <h3 className="text-lg font-bold text-indigo-400">{ex.name}</h3>
-              <button onClick={() => removeExercise(exIdx)} className="text-zinc-500 hover:text-red-400 transition-colors">
-                <Trash2 size={18} />
-              </button>
+      <div className="space-y-3">
+        {exercises.map((ex, exIdx) => {
+          const isSelecting = selectionExIdx === exIdx;
+          return (
+          <section key={exIdx} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-zinc-800/20">
+              {isSelecting ? (
+                <>
+                  <span className="text-sm font-bold text-indigo-400">
+                    {selectedSetIds.size} selected
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button onClick={removeSelectedSets} className="text-zinc-400 hover:text-red-400 transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                    <button onClick={clearSelection} className="text-zinc-400 hover:text-white transition-colors">
+                      <X size={16} />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-base font-bold text-indigo-400">{ex.name}</h3>
+                  <button onClick={() => removeExercise(exIdx)} className="text-zinc-500 hover:text-red-400 transition-colors">
+                    <Trash2 size={16} />
+                  </button>
+                </>
+              )}
             </div>
 
-            <div className="p-4 space-y-4">
+            <div className="px-3 pt-2 pb-3 space-y-1.5">
               <div className="grid grid-cols-12 gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 px-2">
-                <div className="col-span-1 text-center">Set</div>
-                <div className="col-span-4 text-center">Weight (kg)</div>
-                <div className="col-span-4 text-center">Reps</div>
-                <div className="col-span-2 text-center">Done</div>
+                <div className="col-span-1 text-center">#</div>
+                <div className="col-span-5 text-center">Weight (kg)</div>
+                <div className="col-span-5 text-center">Reps</div>
                 <div className="col-span-1"></div>
               </div>
 
-              {ex.sets.map((set, setIdx) => (
-                <div key={set.id} className={`grid grid-cols-12 gap-2 items-center p-2 rounded-xl transition-all ${set.completed ? 'bg-emerald-500/5' : 'bg-zinc-950/50'}`}>
-                  <div className="col-span-1 text-center font-bold text-zinc-400">{setIdx + 1}</div>
-                  <div className="col-span-4">
+              {ex.sets.map((set, setIdx) => {
+                const isSelected = isSelecting && selectedSetIds.has(set.id);
+                return (
+                <div
+                  key={set.id}
+                  className={`grid grid-cols-12 gap-2 items-center py-1 px-2 rounded-lg transition-all select-none
+                    ${isSelected ? 'bg-indigo-500/10 ring-1 ring-inset ring-indigo-500/30' : 'bg-zinc-950/50'}`}
+                  onContextMenu={(e) => e.preventDefault()}
+                >
+                  <div className="col-span-1 flex items-center justify-center">
+                    <span className="font-bold text-zinc-500 text-sm">{setIdx + 1}</span>
+                  </div>
+                  <div className="col-span-5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
                     <NumericInput
                       value={set.weight}
                       allowDecimal
                       onChange={(v) => updateSet(exIdx, setIdx, { weight: v })}
-                      className={`w-full bg-zinc-900 border border-zinc-800 rounded-lg py-2 text-center font-bold focus:ring-1 focus:ring-indigo-500 outline-none ${set.completed ? 'text-zinc-500' : 'text-white'}`}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-1.5 text-center font-bold text-white focus:ring-1 focus:ring-indigo-500 outline-none"
                     />
                   </div>
-                  <div className="col-span-4">
+                  <div className="col-span-5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
                     <NumericInput
                       value={set.reps}
                       onChange={(v) => updateSet(exIdx, setIdx, { reps: v })}
-                      className={`w-full bg-zinc-900 border border-zinc-800 rounded-lg py-2 text-center font-bold focus:ring-1 focus:ring-indigo-500 outline-none ${set.completed ? 'text-zinc-500' : 'text-white'}`}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-1.5 text-center font-bold text-white focus:ring-1 focus:ring-indigo-500 outline-none"
                     />
                   </div>
-                  <div className="col-span-2 flex justify-center">
-                    <button
-                      onClick={() => updateSet(exIdx, setIdx, { completed: !set.completed })}
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
-                        set.completed
-                          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                          : 'bg-zinc-800 text-zinc-600 hover:bg-zinc-700 hover:text-zinc-400'
-                      }`}
-                    >
-                      <Check size={16} strokeWidth={3} />
-                    </button>
-                  </div>
-                  <div className="col-span-1 flex justify-center">
-                    <button
-                      onClick={() => removeSet(exIdx, setIdx)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center transition-all text-zinc-500 hover:text-red-400 hover:bg-red-400/10"
-                    >
-                      <X size={16} strokeWidth={2.5} />
-                    </button>
+                  <div
+                    className="col-span-1 flex items-center justify-center h-full touch-none cursor-pointer"
+                    onClick={() => handleSetClick(exIdx, set.id)}
+                    onPointerDown={() => handleSetPointerDown(exIdx, set.id)}
+                    onPointerUp={handleSetPointerUp}
+                    onPointerCancel={handleSetPointerUp}
+                  >
+                    {isSelecting ? (
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
+                        ${isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-zinc-600'}`}>
+                        {isSelected && <Check size={10} strokeWidth={3} className="text-white" />}
+                      </div>
+                    ) : (
+                      <GripVertical size={16} className="text-zinc-600" />
+                    )}
                   </div>
                 </div>
-              ))}
+              )})}
 
               <button
                 onClick={() => addSet(exIdx)}
-                className="w-full py-3 bg-zinc-800/50 border border-dashed border-zinc-700 rounded-xl text-zinc-400 font-bold text-sm hover:bg-zinc-800 transition-all active:scale-[0.98]"
+                className="w-full py-1.5 bg-zinc-800/50 border border-dashed border-zinc-700 rounded-lg text-zinc-400 font-bold text-sm hover:bg-zinc-800 transition-all active:scale-[0.98]"
               >
                 + Add Set
               </button>
             </div>
           </section>
-        ))}
+        )})}
       </div>
 
       <div className="space-y-4">
@@ -488,6 +568,38 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
         </div>
       )}
 
+      {/* Finish Confirmation Modal */}
+      {showFinishModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-zinc-900 w-full max-w-sm rounded-[2.5rem] border border-zinc-800 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
+            <div className="p-8 text-center space-y-4">
+              <div className="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center mx-auto">
+                <CheckCircle2 size={32} className="text-indigo-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white">Finish Workout?</h3>
+              <p className="text-zinc-400 text-sm">
+                {exercises.length} {exercises.length === 1 ? 'exercise' : 'exercises'} · {exercises.reduce((n, ex) => n + ex.sets.length, 0)} sets
+              </p>
+            </div>
+            <div className="p-6 pt-0 space-y-3">
+              <button
+                onClick={finishWorkout}
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <CheckCircle2 size={18} />
+                Save Workout
+              </button>
+              <button
+                onClick={() => setShowFinishModal(false)}
+                className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all active:scale-[0.98]"
+              >
+                Keep Going
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Discard/Save Confirmation Modal */}
       {showDiscardModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -526,6 +638,26 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
           </div>
         </div>
       )}
+
+      {/* Workout Bottom Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-zinc-900/95 backdrop-blur border-t border-zinc-800 z-40 flex items-center justify-between px-4 h-16">
+        <button
+          onClick={handleAttemptLeave}
+          className="w-10 h-10 flex items-center justify-center rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
+        >
+          <X size={20} />
+        </button>
+        <div className="flex items-center gap-2 bg-indigo-500/10 text-indigo-400 px-4 py-1.5 rounded-full font-mono font-bold text-sm">
+          <Clock size={15} />
+          {formatTimer(timer)}
+        </div>
+        <button
+          onClick={handleFinishClick}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl font-bold shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
+        >
+          Finish
+        </button>
+      </div>
     </div>
   );
 };

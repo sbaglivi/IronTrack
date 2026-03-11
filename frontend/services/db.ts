@@ -1,8 +1,7 @@
 
 import { User, Exercise, WorkoutTemplate, WorkoutInstance } from '../types';
 
-// Use relative URL in production, localhost in development
-const API_URL = import.meta.env.DEV ? 'http://localhost:8000' : '';
+const API_URL = '';
 
 // Helper to get auth token
 const getToken = (): string | null => {
@@ -83,19 +82,23 @@ class DBService {
 
   // Exercises
   async getExercises(): Promise<Exercise[]> {
-    return fetchWithAuth(`${API_URL}/exercises/`);
+    return fetchWithAuth(`${API_URL}/exercises`);
   }
 
-  async addExercise(name: string): Promise<Exercise> {
-    return fetchWithAuth(`${API_URL}/exercises/`, {
+  async searchExercises(query: string): Promise<Exercise[]> {
+    return fetchWithAuth(`${API_URL}/exercises?q=${encodeURIComponent(query)}`);
+  }
+
+  async addExercise(name: string, aliases?: string[]): Promise<Exercise> {
+    return fetchWithAuth(`${API_URL}/exercises`, {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, aliases }),
     });
   }
 
   // Templates
   async getTemplates(userId: string): Promise<WorkoutTemplate[]> {
-    return fetchWithAuth(`${API_URL}/templates/`);
+    return fetchWithAuth(`${API_URL}/templates`);
   }
 
   async getTemplate(id: string): Promise<WorkoutTemplate> {
@@ -117,7 +120,7 @@ class DBService {
       });
     } catch {
       // Template doesn't exist, create it
-      await fetchWithAuth(`${API_URL}/templates/`, {
+      await fetchWithAuth(`${API_URL}/templates`, {
         method: 'POST',
         body: JSON.stringify({
           name: template.name,
@@ -136,7 +139,7 @@ class DBService {
 
   // Instances
   async getInstances(userId: string): Promise<WorkoutInstance[]> {
-    return fetchWithAuth(`${API_URL}/instances/`);
+    return fetchWithAuth(`${API_URL}/instances`);
   }
 
   async getInstance(id: string): Promise<WorkoutInstance> {
@@ -160,7 +163,7 @@ class DBService {
       });
     } catch {
       // Instance doesn't exist, create it
-      return await fetchWithAuth(`${API_URL}/instances/`, {
+      return await fetchWithAuth(`${API_URL}/instances`, {
         method: 'POST',
         body: JSON.stringify({
           templateId: instance.templateId,
@@ -183,7 +186,7 @@ class DBService {
   }
 
   async createInstance(instance: Omit<WorkoutInstance, 'id'>): Promise<WorkoutInstance> {
-    return await fetchWithAuth(`${API_URL}/instances/`, {
+    return await fetchWithAuth(`${API_URL}/instances`, {
       method: 'POST',
       body: JSON.stringify({
         templateId: instance.templateId,

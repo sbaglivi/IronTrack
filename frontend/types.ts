@@ -8,6 +8,8 @@ export interface User {
 export interface Exercise {
   id: string;
   name: string;
+  aliases: string[];
+  createdAt: number;
 }
 
 export interface TemplateExercise {
@@ -31,7 +33,7 @@ export interface WorkoutSet {
   id: string;
   weight: number;
   reps: number;
-  completed: boolean;
+  duration?: number; // seconds, for isometric holds
 }
 
 export interface InstanceExercise {

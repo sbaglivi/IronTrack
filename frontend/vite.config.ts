@@ -8,6 +8,13 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: {
+          '/api': 'http://localhost:8000',
+          '/auth': 'http://localhost:8000',
+          '/exercises': 'http://localhost:8000',
+          '/templates': 'http://localhost:8000',
+          '/instances': 'http://localhost:8000',
+        },
       },
       plugins: [react()],
       resolve: {

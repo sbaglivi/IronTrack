@@ -1,58 +1,45 @@
-# Multi-stage build for IronTrack
-
 # Stage 1: Build frontend
-FROM node:25-alpine AS frontend-builder
+FROM oven/bun:1 AS frontend-builder
 
 WORKDIR /app
 
-# Copy package files
-COPY frontend/package*.json ./
-
-# Install dependencies
-RUN npm ci
-
-# Copy frontend source
-COPY frontend/ .
+# Install frontend dependencies via workspace
+COPY package.json bun.lock ./
+COPY frontend/package.json ./frontend/
+COPY backend/package.json ./backend/
+RUN bun install --frozen-lockfile
 
 # Build frontend
-RUN npm run build
+COPY frontend/ ./frontend/
+RUN bun run --filter frontend build
 
-# Stage 2: Python backend + serve frontend
-FROM python:3.11-slim
+# Stage 2: Backend runtime
+FROM oven/bun:1-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+# Install backend production dependencies via workspace
+COPY package.json bun.lock ./
+COPY frontend/package.json ./frontend/
+COPY backend/package.json ./backend/
+RUN bun install --production --frozen-lockfile
 
-# Copy backend requirements
-COPY irontrack/requirements.txt ./irontrack/
+# Copy backend source
+COPY backend/ ./backend/
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r irontrack/requirements.txt
-
-# Copy backend code
-COPY irontrack/ ./irontrack/
-
-# Copy built frontend from previous stage
-COPY --from=frontend-builder /app/dist ./frontend/dist
+# Copy built frontend from build stage
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Create directory for SQLite database
 RUN mkdir -p /app/data
 
-# Environment variables
-ENV PYTHONUNBUFFERED=1
 ENV DATABASE_PATH=/app/data/irontrack.db
+ENV PORT=8000
 
-# Expose port
 EXPOSE 8000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api')"
+    CMD bun -e "const r = await fetch('http://localhost:8000/api'); process.exit(r.ok ? 0 : 1)"
 
-# Run the application
-CMD ["uvicorn", "irontrack.main:app", "--host", "0.0.0.0", "--port", "8000"]
+WORKDIR /app/backend
+CMD ["bun", "run", "src/index.ts"]

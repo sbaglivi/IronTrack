@@ -5,16 +5,17 @@ Personal workout tracking application.
 ## Project Structure
 
 - `frontend/` — React SPA (Vite, TypeScript, Tailwind via CDN)
-- `irontrack/` — FastAPI backend (Python, SQLAlchemy, SQLite)
-- `Dockerfile` — Multi-stage build (Node for frontend, Python for backend)
+- `backend/` — Hono backend (TypeScript, Bun, Drizzle ORM, SQLite)
+- `package.json` — Bun workspace root
+- `Dockerfile` — Multi-stage build (Bun for frontend build + backend runtime)
 
 ## Frontend
 
 ```bash
 cd frontend
-npm install
-npm run dev        # Dev server on port 3000
-npm run build      # Production build to frontend/dist/
+bun install
+bun run dev        # Dev server on port 3000
+bun run build      # Production build to frontend/dist/
 ```
 
 - Entry point: `frontend/index.tsx`
@@ -25,27 +26,35 @@ npm run build      # Production build to frontend/dist/
 ## Backend
 
 ```bash
-cd irontrack
-pip install -r requirements.txt
-uvicorn irontrack.main:app --reload   # API on port 8000
+cd backend
+bun install
+bun run dev        # Dev server on port 8000 (hot reload)
+bun run start      # Production start
 ```
 
-- Entry point: `irontrack/main.py`
-- Routes: `irontrack/routers/` (auth, exercises, templates, instances)
-- DB: SQLAlchemy models in `irontrack/models.py`, SQLite via `irontrack/database.py`
-- Auth: JWT-based (`irontrack/auth.py`)
+- Entry point: `backend/src/index.ts`
+- App factory: `backend/src/app.ts` (accepts a `Db` for testability)
+- Routes: `backend/src/routes/` (auth, exercises, templates, instances)
+- DB: Drizzle ORM schema in `backend/src/db/schema.ts`, SQLite via Bun native driver
+- Auth: JWT-based (`backend/src/auth.ts`)
 - In production, the backend serves the built frontend from `frontend/dist/`
+
+## Running both together (from repo root)
+
+```bash
+bun run dev    # Starts backend (port 8000) + frontend dev server (port 3000)
+```
+
+The frontend Vite dev server proxies all API requests (`/auth`, `/exercises`, etc.) to `localhost:8000`.
 
 ## Verification
 
-After making changes, always verify both components still work:
+After making changes, verify both components still work:
 
-**Frontend:** Run `cd frontend && npm run build` — this catches TypeScript and build errors (do NOT use `tsc --noEmit` directly; it misses Vite-specific types). Successful build means no errors.
+**Frontend:** Run `bun run build` from repo root (or `cd frontend && bun run build`) — catches TypeScript and build errors.
 
-**Backend:** Run `cd irontrack && uv run uvicorn irontrack.main:app --app-dir .. --port 8000` and confirm it starts (check `curl localhost:8000/api`). The `--app-dir ..` adds the repo root to Python path so `import irontrack` works.
+**Backend:** Run `cd backend && bun run start` and confirm it starts (`curl localhost:8000/api`).
 
-**Lint:** Run `cd irontrack && uv run ruff check .` — all checks must pass with zero errors.
-
-**Tests:** Run `cd irontrack && uv run pytest` — all tests must pass.
+**Tests:** Run `bun run test` from repo root — runs all backend unit tests with bun:test.
 
 **E2E Tests:** Run `cd frontend && npx playwright test` — builds frontend, starts backend with test DB, runs browser tests. Requires `npx playwright install chromium` on first setup.
