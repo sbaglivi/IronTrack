@@ -414,7 +414,7 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   };
 
   return (
-    <div className="space-y-6 pb-20 animate-in slide-in-from-right-4 duration-300">
+    <div className="space-y-6 pb-20 animate-in slide-in-from-right-4 duration-300" onClick={() => { if (selectionExIdx !== null) clearSelection(); }}>
       <header>
         <input
           type="text"
@@ -450,9 +450,12 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
               <div className={`flex-1 h-px ${isInSuperset && exercises[exIdx - 1].supersetId === ex.supersetId ? 'bg-indigo-500/30' : 'bg-transparent'}`} />
             </div>
           )}
-          <section className={`bg-zinc-900 rounded-2xl overflow-hidden shadow-sm ${
-            isInSuperset ? 'border border-indigo-500/30 border-l-2 border-l-indigo-500' : 'border border-zinc-800'
-          }`}>
+          <section
+            className={`bg-zinc-900 rounded-2xl overflow-hidden shadow-sm ${
+              isInSuperset ? 'border border-indigo-500/30 border-l-2 border-l-indigo-500' : 'border border-zinc-800'
+            }`}
+            onClick={isSelecting ? (e) => e.stopPropagation() : undefined}
+          >
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-zinc-800/20">
               {isSelecting ? (
                 <>
