@@ -11,7 +11,7 @@ RUN bun install --frozen-lockfile
 
 # Build frontend
 COPY frontend/ ./frontend/
-RUN bun run --filter frontend build
+RUN bun run --filter './frontend' build
 
 # Stage 2: Backend runtime
 FROM oven/bun:1-slim

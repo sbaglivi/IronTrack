@@ -215,6 +215,7 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const handleDiscard = async () => {
+    hasModified.current = false;
     if (draftIdRef.current) {
       await db.deleteInstance(draftIdRef.current);
     }
@@ -222,6 +223,7 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const handleSaveAndExit = async () => {
+    hasModified.current = false;
     await saveDraft();
     navigate('/');
   };
