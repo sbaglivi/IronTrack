@@ -5,6 +5,7 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  updatedAt: integer("updated_at").notNull().default(0),
 });
 
 export const exercises = sqliteTable("exercises", {
@@ -12,6 +13,7 @@ export const exercises = sqliteTable("exercises", {
   name: text("name").notNull().unique(),
   aliases: text("aliases").notNull().default("[]"), // JSON array of strings, e.g. ["RDL"]
   createdAt: integer("created_at").notNull().default(0),
+  updatedAt: integer("updated_at").notNull().default(0),
 });
 
 export const workoutTemplates = sqliteTable("workout_templates", {
@@ -23,6 +25,8 @@ export const workoutTemplates = sqliteTable("workout_templates", {
   exercises: text("exercises").notNull(), // JSON array of TemplateExercise
   isPublic: integer("is_public", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull().default(0),
+  deletedAt: integer("deleted_at"),
 });
 
 export const workoutInstances = sqliteTable("workout_instances", {
@@ -36,6 +40,8 @@ export const workoutInstances = sqliteTable("workout_instances", {
   exercises: text("exercises").notNull(), // JSON array of InstanceExercise
   notes: text("notes").default(""),
   isDraft: integer("is_draft", { mode: "boolean" }).notNull().default(false),
+  updatedAt: integer("updated_at").notNull().default(0),
+  deletedAt: integer("deleted_at"),
 });
 
 export type User = typeof users.$inferSelect;

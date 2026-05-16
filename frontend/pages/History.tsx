@@ -20,6 +20,8 @@ const History: React.FC<{ user: User }> = ({ user }) => {
       setFilteredHistory(data);
     };
     loadHistory();
+    window.addEventListener('irontrack:synced', loadHistory);
+    return () => window.removeEventListener('irontrack:synced', loadHistory);
   }, [user.id]);
 
   useEffect(() => {

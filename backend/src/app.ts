@@ -4,6 +4,7 @@ import { createAuthRoutes } from "./routes/auth";
 import { createExerciseRoutes } from "./routes/exercises";
 import { createTemplateRoutes } from "./routes/templates";
 import { createInstanceRoutes } from "./routes/instances";
+import { createSyncRoutes } from "./routes/sync";
 import type { Db } from "./db";
 
 export function createApp(db: Db) {
@@ -17,6 +18,7 @@ export function createApp(db: Db) {
   app.route("/exercises", createExerciseRoutes(db));
   app.route("/templates", createTemplateRoutes(db));
   app.route("/instances", createInstanceRoutes(db));
+  app.route("/sync", createSyncRoutes(db));
 
   return app;
 }

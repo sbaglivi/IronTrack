@@ -81,8 +81,8 @@ async function seedExercises() {
 
 const app = createApp(db);
 
-// Serve frontend static files in production
-app.use("/assets/*", serveStatic({ root: "../frontend/dist" }));
+// Serve frontend static files in production (must come after API routes)
+app.use("/*", serveStatic({ root: "../frontend/dist" }));
 app.get("*", serveStatic({ path: "../frontend/dist/index.html" }));
 
 const port = Number(process.env.PORT ?? 8000);

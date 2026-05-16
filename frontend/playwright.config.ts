@@ -19,9 +19,9 @@ export default defineConfig({
   ],
   globalSetup: './e2e/global-setup.ts',
   webServer: {
-    command: `npm run build && cd ${projectRoot}/irontrack && rm -f "${testDbPath}" && DATABASE_PATH="${testDbPath}" uv run uvicorn irontrack.main:app --app-dir .. --port 8765`,
+    command: `cd "${projectRoot}" && bun run --filter './frontend' build && rm -f "${testDbPath}" && DATABASE_PATH="${testDbPath}" PORT=8765 bun run --filter './backend' start`,
     port: 8765,
-    timeout: 60_000,
+    timeout: 120_000,
     reuseExistingServer: !process.env.CI,
   },
 });

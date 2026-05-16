@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { workoutInstances } from "../db/schema";
 import { createAuthMiddleware } from "../auth";
 import type { AppEnv } from "../auth";
@@ -16,6 +16,7 @@ function instanceToResponse(i: typeof workoutInstances.$inferSelect) {
     exercises: JSON.parse(i.exercises) as InstanceExercise[],
     notes: i.notes ?? "",
     isDraft: i.isDraft,
+    updatedAt: i.updatedAt,
   };
 }
 
@@ -32,7 +33,7 @@ export function createInstanceRoutes(db: Db) {
     const all = await db
       .select()
       .from(workoutInstances)
-      .where(eq(workoutInstances.userId, user.id))
+      .where(and(eq(workoutInstances.userId, user.id), isNull(workoutInstances.deletedAt)))
       .orderBy(desc(workoutInstances.date));
 
     const filtered = includeDrafts ? all : all.filter((i) => !i.isDraft);
@@ -44,7 +45,11 @@ export function createInstanceRoutes(db: Db) {
     const [draft] = await db
       .select()
       .from(workoutInstances)
-      .where(and(eq(workoutInstances.userId, user.id), eq(workoutInstances.isDraft, true)))
+      .where(and(
+        eq(workoutInstances.userId, user.id),
+        eq(workoutInstances.isDraft, true),
+        isNull(workoutInstances.deletedAt),
+      ))
       .orderBy(desc(workoutInstances.date))
       .limit(1);
 
@@ -56,7 +61,7 @@ export function createInstanceRoutes(db: Db) {
     const [instance] = await db
       .select()
       .from(workoutInstances)
-      .where(eq(workoutInstances.id, c.req.param("id")));
+      .where(and(eq(workoutInstances.id, c.req.param("id")), isNull(workoutInstances.deletedAt)));
 
     if (!instance) return c.json({ detail: "Instance not found" }, 404);
     if (instance.userId !== user.id) return c.json({ detail: "Access denied" }, 403);
@@ -76,6 +81,8 @@ export function createInstanceRoutes(db: Db) {
       exercises: JSON.stringify(body.exercises),
       notes: body.notes ?? "",
       isDraft: body.isDraft ?? false,
+      updatedAt: Date.now(),
+      deletedAt: null,
     };
     await db.insert(workoutInstances).values(instance);
 
@@ -87,13 +94,13 @@ export function createInstanceRoutes(db: Db) {
     const [instance] = await db
       .select()
       .from(workoutInstances)
-      .where(eq(workoutInstances.id, c.req.param("id")));
+      .where(and(eq(workoutInstances.id, c.req.param("id")), isNull(workoutInstances.deletedAt)));
 
     if (!instance) return c.json({ detail: "Instance not found" }, 404);
     if (instance.userId !== user.id) return c.json({ detail: "Access denied" }, 403);
 
     const body = await c.req.json<UpdateInstanceBody>();
-    const updates: Partial<typeof workoutInstances.$inferInsert> = {};
+    const updates: Partial<typeof workoutInstances.$inferInsert> = { updatedAt: Date.now() };
     if (body.name !== undefined) updates.name = body.name;
     if (body.date !== undefined) updates.date = body.date;
     if (body.exercises !== undefined) updates.exercises = JSON.stringify(body.exercises);
@@ -114,12 +121,16 @@ export function createInstanceRoutes(db: Db) {
     const [instance] = await db
       .select()
       .from(workoutInstances)
-      .where(eq(workoutInstances.id, c.req.param("id")));
+      .where(and(eq(workoutInstances.id, c.req.param("id")), isNull(workoutInstances.deletedAt)));
 
     if (!instance) return c.json({ detail: "Instance not found" }, 404);
     if (instance.userId !== user.id) return c.json({ detail: "Access denied" }, 403);
 
-    await db.delete(workoutInstances).where(eq(workoutInstances.id, instance.id));
+    const now = Date.now();
+    await db
+      .update(workoutInstances)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(eq(workoutInstances.id, instance.id));
     return c.json({ message: "Instance deleted successfully" });
   });
 

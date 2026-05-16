@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, or } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { workoutTemplates } from "../db/schema";
 import { createAuthMiddleware } from "../auth";
 import type { AppEnv } from "../auth";
@@ -14,6 +14,7 @@ function templateToResponse(t: typeof workoutTemplates.$inferSelect) {
     exercises: JSON.parse(t.exercises) as TemplateExercise[],
     isPublic: t.isPublic,
     createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
   };
 }
 
@@ -28,7 +29,10 @@ export function createTemplateRoutes(db: Db) {
     const templates = await db
       .select()
       .from(workoutTemplates)
-      .where(or(eq(workoutTemplates.userId, user.id), eq(workoutTemplates.isPublic, true)));
+      .where(and(
+        or(eq(workoutTemplates.userId, user.id), eq(workoutTemplates.isPublic, true)),
+        isNull(workoutTemplates.deletedAt),
+      ));
     return c.json(templates.map(templateToResponse));
   });
 
@@ -37,7 +41,7 @@ export function createTemplateRoutes(db: Db) {
     const [template] = await db
       .select()
       .from(workoutTemplates)
-      .where(eq(workoutTemplates.id, c.req.param("id")));
+      .where(and(eq(workoutTemplates.id, c.req.param("id")), isNull(workoutTemplates.deletedAt)));
 
     if (!template) return c.json({ detail: "Template not found" }, 404);
     if (template.userId !== user.id && !template.isPublic) {
@@ -50,6 +54,7 @@ export function createTemplateRoutes(db: Db) {
   templateRoutes.post("/", async (c) => {
     const user = c.get("user");
     const body = await c.req.json<CreateTemplateBody>();
+    const now = Date.now();
 
     const template = {
       id: crypto.randomUUID(),
@@ -57,7 +62,9 @@ export function createTemplateRoutes(db: Db) {
       name: body.name,
       exercises: JSON.stringify(body.exercises),
       isPublic: body.isPublic ?? false,
-      createdAt: Date.now(),
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
     };
     await db.insert(workoutTemplates).values(template);
 
@@ -69,13 +76,13 @@ export function createTemplateRoutes(db: Db) {
     const [template] = await db
       .select()
       .from(workoutTemplates)
-      .where(eq(workoutTemplates.id, c.req.param("id")));
+      .where(and(eq(workoutTemplates.id, c.req.param("id")), isNull(workoutTemplates.deletedAt)));
 
     if (!template) return c.json({ detail: "Template not found" }, 404);
     if (template.userId !== user.id) return c.json({ detail: "Access denied" }, 403);
 
     const body = await c.req.json<UpdateTemplateBody>();
-    const updates: Partial<typeof workoutTemplates.$inferInsert> = {};
+    const updates: Partial<typeof workoutTemplates.$inferInsert> = { updatedAt: Date.now() };
     if (body.name !== undefined) updates.name = body.name;
     if (body.exercises !== undefined) updates.exercises = JSON.stringify(body.exercises);
     if (body.isPublic !== undefined) updates.isPublic = body.isPublic;
@@ -94,12 +101,16 @@ export function createTemplateRoutes(db: Db) {
     const [template] = await db
       .select()
       .from(workoutTemplates)
-      .where(eq(workoutTemplates.id, c.req.param("id")));
+      .where(and(eq(workoutTemplates.id, c.req.param("id")), isNull(workoutTemplates.deletedAt)));
 
     if (!template) return c.json({ detail: "Template not found" }, 404);
     if (template.userId !== user.id) return c.json({ detail: "Access denied" }, 403);
 
-    await db.delete(workoutTemplates).where(eq(workoutTemplates.id, template.id));
+    const now = Date.now();
+    await db
+      .update(workoutTemplates)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(eq(workoutTemplates.id, template.id));
     return c.json({ message: "Template deleted successfully" });
   });
 

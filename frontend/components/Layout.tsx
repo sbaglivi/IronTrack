@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
 import { ClipboardList, History, LogOut, Dumbbell } from 'lucide-react';
-import { db } from '../services/db';
+import SyncIndicator from './SyncIndicator';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -52,13 +52,16 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
           })}
         </nav>
 
-        <button
-          onClick={onLogout}
-          className="flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
-        >
-          <LogOut size={20} />
-          <span className="font-medium">Sign Out</span>
-        </button>
+        <div className="space-y-3">
+          <SyncIndicator />
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+          >
+            <LogOut size={20} />
+            <span className="font-medium">Sign Out</span>
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -70,9 +73,14 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
       <nav className={`${isWorkout ? 'hidden' : ''} md:hidden fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 flex justify-around items-center h-16 px-4 z-50`}>
         <button
           onClick={onLogout}
-          className="flex flex-col items-center justify-center w-full h-full space-y-1 text-zinc-500"
+          className="relative flex flex-col items-center justify-center w-full h-full space-y-1 text-zinc-500"
         >
-          <LogOut size={24} />
+          <div className="relative">
+            <LogOut size={24} />
+            <div className="absolute -top-0.5 -right-0.5">
+              <SyncIndicator compact />
+            </div>
+          </div>
           <span className="text-[10px] uppercase font-bold tracking-wider">Out</span>
         </button>
         {navItems.map((item) => {

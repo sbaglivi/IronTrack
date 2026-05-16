@@ -1,49 +1,39 @@
 
 import { User, Exercise, WorkoutTemplate, WorkoutInstance } from '../types';
+import { localDb, type LocalTemplate, type LocalInstance } from './localDb';
+import { enqueue, localTemplateToPayload, localInstanceToPayload, resetAuthState, pullSync, flushOutbox } from './sync';
 
 const API_URL = '';
 
-// Helper to get auth token
-const getToken = (): string | null => {
-  return localStorage.getItem('irontrack_token');
-};
+const getToken = (): string | null => localStorage.getItem('irontrack_token');
 
-// Helper to set auth token
 const setToken = (token: string | null) => {
-  if (token) {
-    localStorage.setItem('irontrack_token', token);
-  } else {
-    localStorage.removeItem('irontrack_token');
-  }
+  if (token) localStorage.setItem('irontrack_token', token);
+  else localStorage.removeItem('irontrack_token');
 };
 
-// Helper for authenticated requests
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const token = getToken();
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
-
+  const headers: HeadersInit = { 'Content-Type': 'application/json', ...options.headers };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const response = await fetch(url, { ...options, headers });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Request failed' }));
     throw new Error(error.detail || 'Request failed');
   }
-
   return response.json();
 };
 
+const UPPERCASE_TOKENS = new Set(['BB', 'DB', 'KB', 'BW', 'EZ']);
+
+function normalizeExerciseName(name: string): string {
+  return name.trim().split(/\s+/).map(word => {
+    if (UPPERCASE_TOKENS.has(word.toUpperCase())) return word.toUpperCase();
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+}
+
 class DBService {
-  // Auth
   getCurrentUser(): User | null {
     const data = localStorage.getItem('irontrack_current_user');
     return data ? JSON.parse(data) : null;
@@ -54,7 +44,15 @@ class DBService {
       localStorage.setItem('irontrack_current_user', JSON.stringify(user));
     } else {
       localStorage.removeItem('irontrack_current_user');
+      localStorage.removeItem('irontrack_last_sync');
       setToken(null);
+      void Promise.all([
+        localDb.exercises.clear(),
+        localDb.templates.clear(),
+        localDb.instances.clear(),
+        localDb.outbox.clear(),
+        localDb.meta.clear(),
+      ]);
     }
   }
 
@@ -63,9 +61,11 @@ class DBService {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
-
     setToken(response.access_token);
     this.setCurrentUser(response.user);
+    resetAuthState();
+    void pullSync();
+    void flushOutbox();
     return response.user;
   }
 
@@ -74,146 +74,157 @@ class DBService {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
-
     setToken(response.access_token);
     this.setCurrentUser(response.user);
+    resetAuthState();
+    void pullSync();
     return response.user;
   }
 
   // Exercises
   async getExercises(): Promise<Exercise[]> {
-    return fetchWithAuth(`${API_URL}/exercises`);
+    return localDb.exercises.orderBy('name').toArray() as Promise<Exercise[]>;
   }
 
   async searchExercises(query: string): Promise<Exercise[]> {
-    return fetchWithAuth(`${API_URL}/exercises?q=${encodeURIComponent(query)}`);
+    const q = query.toLowerCase();
+    return localDb.exercises.filter(ex =>
+      ex.name.toLowerCase().includes(q) ||
+      ex.aliases.some(a => a.toLowerCase().includes(q))
+    ).toArray() as Promise<Exercise[]>;
   }
 
   async addExercise(name: string, aliases?: string[]): Promise<Exercise> {
-    return fetchWithAuth(`${API_URL}/exercises`, {
-      method: 'POST',
-      body: JSON.stringify({ name, aliases }),
-    });
+    const normalized = normalizeExerciseName(name);
+    const existing = await localDb.exercises.where('name').equals(normalized).first();
+    if (existing) return existing as Exercise;
+
+    const now = Date.now();
+    const ex = {
+      id: crypto.randomUUID(),
+      name: normalized,
+      aliases: aliases ?? [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    await localDb.exercises.put(ex);
+    await enqueue('upsert', 'exercise', ex.id, { ...ex });
+    return ex as Exercise;
   }
 
   // Templates
-  async getTemplates(userId: string): Promise<WorkoutTemplate[]> {
-    return fetchWithAuth(`${API_URL}/templates`);
+  async getTemplates(_userId: string): Promise<WorkoutTemplate[]> {
+    const user = this.getCurrentUser();
+    if (!user) return [];
+    return localDb.templates
+      .filter(t => t.userId === user.id && t.deletedAt === null)
+      .toArray() as Promise<WorkoutTemplate[]>;
   }
 
   async getTemplate(id: string): Promise<WorkoutTemplate> {
-    return fetchWithAuth(`${API_URL}/templates/${id}`);
+    const t = await localDb.templates.get(id);
+    if (!t || t.deletedAt !== null) throw new Error('Template not found');
+    return t as WorkoutTemplate;
   }
 
   async saveTemplate(template: WorkoutTemplate): Promise<void> {
-    // Check if template exists by trying to fetch it
-    try {
-      await this.getTemplate(template.id);
-      // Template exists, update it
-      await fetchWithAuth(`${API_URL}/templates/${template.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          name: template.name,
-          exercises: template.exercises,
-          isPublic: template.isPublic,
-        }),
-      });
-    } catch {
-      // Template doesn't exist, create it
-      await fetchWithAuth(`${API_URL}/templates`, {
-        method: 'POST',
-        body: JSON.stringify({
-          name: template.name,
-          exercises: template.exercises,
-          isPublic: template.isPublic,
-        }),
-      });
-    }
+    const now = Date.now();
+    const existing = await localDb.templates.get(template.id);
+    const local: LocalTemplate = {
+      id: template.id,
+      userId: template.userId,
+      name: template.name,
+      exercises: template.exercises,
+      isPublic: template.isPublic,
+      createdAt: template.createdAt ?? existing?.createdAt ?? now,
+      updatedAt: now,
+      deletedAt: null,
+    };
+    await localDb.templates.put(local);
+    await enqueue('upsert', 'template', local.id, localTemplateToPayload(local));
   }
 
   async deleteTemplate(id: string): Promise<void> {
-    await fetchWithAuth(`${API_URL}/templates/${id}`, {
-      method: 'DELETE',
-    });
+    const existing = await localDb.templates.get(id);
+    if (!existing) return;
+    const now = Date.now();
+    await localDb.templates.put({ ...existing, deletedAt: now, updatedAt: now });
+    await enqueue('delete', 'template', id, { id, updatedAt: now });
   }
 
   // Instances
-  async getInstances(userId: string): Promise<WorkoutInstance[]> {
-    return fetchWithAuth(`${API_URL}/instances`);
+  async getInstances(_userId: string): Promise<WorkoutInstance[]> {
+    const user = this.getCurrentUser();
+    if (!user) return [];
+    return localDb.instances
+      .filter(i => i.userId === user.id && !i.isDraft && i.deletedAt === null)
+      .toArray() as Promise<WorkoutInstance[]>;
   }
 
   async getInstance(id: string): Promise<WorkoutInstance> {
-    return fetchWithAuth(`${API_URL}/instances/${id}`);
+    const i = await localDb.instances.get(id);
+    if (!i || i.deletedAt !== null) throw new Error('Instance not found');
+    return i as WorkoutInstance;
   }
 
   async saveInstance(instance: WorkoutInstance): Promise<WorkoutInstance> {
-    // Check if instance exists by trying to fetch it
-    try {
-      await this.getInstance(instance.id);
-      // Instance exists, update it
-      return await fetchWithAuth(`${API_URL}/instances/${instance.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          name: instance.name,
-          date: instance.date,
-          exercises: instance.exercises,
-          notes: instance.notes,
-          isDraft: instance.isDraft,
-        }),
-      });
-    } catch {
-      // Instance doesn't exist, create it
-      return await fetchWithAuth(`${API_URL}/instances`, {
-        method: 'POST',
-        body: JSON.stringify({
-          templateId: instance.templateId,
-          name: instance.name,
-          date: instance.date,
-          exercises: instance.exercises,
-          notes: instance.notes,
-          isDraft: instance.isDraft,
-        }),
-      });
-    }
+    const now = Date.now();
+    const existing = await localDb.instances.get(instance.id);
+    const local: LocalInstance = {
+      id: instance.id,
+      userId: instance.userId,
+      templateId: instance.templateId ?? null,
+      name: instance.name,
+      date: instance.date,
+      exercises: instance.exercises,
+      notes: instance.notes,
+      isDraft: instance.isDraft,
+      updatedAt: now,
+      deletedAt: existing?.deletedAt ?? null,
+    };
+    await localDb.instances.put(local);
+    await enqueue('upsert', 'instance', local.id, localInstanceToPayload(local));
+    return local as WorkoutInstance;
   }
 
   async getDraft(): Promise<WorkoutInstance | null> {
-    try {
-      return await fetchWithAuth(`${API_URL}/instances/draft`);
-    } catch {
-      return null;
-    }
+    const user = this.getCurrentUser();
+    if (!user) return null;
+    const draft = await localDb.instances
+      .filter(i => i.isDraft && i.userId === user.id && i.deletedAt === null)
+      .first();
+    return draft ? (draft as WorkoutInstance) : null;
   }
 
   async createInstance(instance: Omit<WorkoutInstance, 'id'>): Promise<WorkoutInstance> {
-    return await fetchWithAuth(`${API_URL}/instances`, {
-      method: 'POST',
-      body: JSON.stringify({
-        templateId: instance.templateId,
-        name: instance.name,
-        date: instance.date,
-        exercises: instance.exercises,
-        notes: instance.notes,
-        isDraft: instance.isDraft,
-      }),
-    });
+    const now = Date.now();
+    const local: LocalInstance = {
+      id: crypto.randomUUID(),
+      userId: instance.userId,
+      templateId: instance.templateId ?? null,
+      name: instance.name,
+      date: instance.date,
+      exercises: instance.exercises,
+      notes: instance.notes,
+      isDraft: instance.isDraft,
+      updatedAt: now,
+      deletedAt: null,
+    };
+    await localDb.instances.put(local);
+    await enqueue('upsert', 'instance', local.id, localInstanceToPayload(local));
+    return local as WorkoutInstance;
   }
 
   async deleteInstance(id: string): Promise<void> {
-    await fetchWithAuth(`${API_URL}/instances/${id}`, {
-      method: 'DELETE',
-    });
+    const existing = await localDb.instances.get(id);
+    if (!existing) return;
+    const now = Date.now();
+    await localDb.instances.put({ ...existing, deletedAt: now, updatedAt: now });
+    await enqueue('delete', 'instance', id, { id, updatedAt: now });
   }
 
-  // Legacy sync methods for backward compatibility
-  getUsers(): User[] {
-    // Not needed with backend
-    return [];
-  }
-
-  addUser(user: User) {
-    // Not needed with backend - use signup instead
-  }
+  getUsers(): User[] { return []; }
+  addUser(_user: User) {}
 }
 
 export const db = new DBService();

@@ -73,11 +73,13 @@ export function createExerciseRoutes(db: Db) {
     const [existing] = await db.select().from(exercises).where(eq(exercises.name, normalized));
     if (existing) return c.json(exerciseToResponse(existing));
 
+    const now = Date.now();
     const exercise = {
       id: crypto.randomUUID(),
       name: normalized,
       aliases: JSON.stringify(aliases),
-      createdAt: Date.now(),
+      createdAt: now,
+      updatedAt: now,
     };
     await db.insert(exercises).values(exercise);
 

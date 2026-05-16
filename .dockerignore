@@ -57,7 +57,13 @@ tmp/
 temp/
 *.tmp
 
-# Scripts (not needed in container)
+# Scripts and deployment config (not needed in container)
 deploy.sh
 start-backend.sh
 start-backend.bat
+Makefile
+compose.yaml
+
+# Tests
+frontend/e2e/
+backend/test/

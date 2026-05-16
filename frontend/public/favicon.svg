@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="96" fill="#18181b"/>
+  <!-- dumbbell bar -->
+  <rect x="156" y="236" width="200" height="40" rx="8" fill="#a1a1aa"/>
+  <!-- left weight stack outer -->
+  <rect x="96" y="184" width="56" height="144" rx="12" fill="#71717a"/>
+  <!-- left weight stack inner -->
+  <rect x="112" y="196" width="28" height="120" rx="8" fill="#52525b"/>
+  <!-- right weight stack outer -->
+  <rect x="360" y="184" width="56" height="144" rx="12" fill="#71717a"/>
+  <!-- right weight stack inner -->
+  <rect x="372" y="196" width="28" height="120" rx="8" fill="#52525b"/>
+  <!-- left collar -->
+  <rect x="148" y="212" width="20" height="88" rx="6" fill="#a1a1aa"/>
+  <!-- right collar -->
+  <rect x="344" y="212" width="20" height="88" rx="6" fill="#a1a1aa"/>
+</svg>

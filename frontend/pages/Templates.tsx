@@ -20,6 +20,8 @@ const Templates: React.FC<{ user: User }> = ({ user }) => {
       setDraft(existingDraft);
     };
     load();
+    window.addEventListener('irontrack:synced', load);
+    return () => window.removeEventListener('irontrack:synced', load);
   }, [user.id]);
 
   const handleDelete = async (id: string) => {

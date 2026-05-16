@@ -28,6 +28,7 @@ export interface WorkoutTemplate {
   exercises: TemplateExercise[];
   isPublic: boolean;
   createdAt: number;
+  updatedAt?: number;
 }
 
 export interface WorkoutSet {
@@ -47,10 +48,11 @@ export interface InstanceExercise {
 export interface WorkoutInstance {
   id: string;
   userId: string;
-  templateId?: string;
+  templateId?: string | null;
   name: string;
   date: number;
   exercises: InstanceExercise[];
   notes: string;
   isDraft: boolean;
+  updatedAt?: number;
 }
