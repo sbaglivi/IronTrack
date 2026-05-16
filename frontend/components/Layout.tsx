@@ -1,8 +1,9 @@
 
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { ClipboardList, History, LogOut, Dumbbell } from 'lucide-react';
+import { ClipboardList, History, LogOut, Dumbbell, Download } from 'lucide-react';
 import SyncIndicator from './SyncIndicator';
+import { useInstallPrompt } from '../hooks/useInstallPrompt';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
   const [location] = useLocation();
+  const { canInstall, triggerInstall } = useInstallPrompt();
 
   const navItems = [
     { path: '/templates', icon: ClipboardList, label: 'Templates' },
@@ -54,6 +56,15 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
 
         <div className="space-y-3">
           <SyncIndicator />
+          {canInstall && (
+            <button
+              onClick={triggerInstall}
+              className="w-full flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-lg transition-colors"
+            >
+              <Download size={20} />
+              <span className="font-medium">Install App</span>
+            </button>
+          )}
           <button
             onClick={onLogout}
             className="w-full flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
@@ -83,6 +94,15 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
           </div>
           <span className="text-[10px] uppercase font-bold tracking-wider">Out</span>
         </button>
+        {canInstall && (
+          <button
+            onClick={triggerInstall}
+            className="flex flex-col items-center justify-center w-full h-full space-y-1 text-indigo-400"
+          >
+            <Download size={24} />
+            <span className="text-[10px] uppercase font-bold tracking-wider">Install</span>
+          </button>
+        )}
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.path;

@@ -18,7 +18,7 @@ status:
 	ssh $(DEPLOY_HOST) 'cd /home/sbaglivi/apps/irontrack && $(COMPOSE) ps && $(COMPOSE) logs --tail=20 irontrack'
 
 ssh:
-	ssh $(DEPLOY_HOST) && cd /home/sbaglivi/apps/irontrack
+	ssh -t $(DEPLOY_HOST) "cd /home/sbaglivi/apps/irontrack; bash -l"
 
 backup:
 	ssh $(DEPLOY_HOST) 'cp /home/sbaglivi/apps/irontrack/data/irontrack.db /home/sbaglivi/apps/irontrack/data/irontrack.db.$$(date +%Y%m%d)'

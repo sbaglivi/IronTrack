@@ -27,6 +27,7 @@ export default defineConfig(({ mode }) => {
           injectRegister: 'auto',
           includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon-180x180.png'],
           manifest: {
+            id: "/",
             name: 'IronTrack',
             short_name: 'IronTrack',
             description: 'Personal workout tracker',
@@ -40,6 +41,10 @@ export default defineConfig(({ mode }) => {
               { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
               { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
               { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+            ],
+            screenshots: [
+              { src: 'screenshot-mobile.png', sizes: '390x843', type: 'image/png', label: 'IronTrack mobile' },
+              { src: 'screenshot-desktop.png', sizes: '1280x720', type: 'image/png', form_factor: 'wide', label: 'IronTrack desktop' },
             ],
           },
           workbox: {
