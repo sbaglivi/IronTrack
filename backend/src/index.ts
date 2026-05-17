@@ -81,6 +81,12 @@ async function seedExercises() {
 
 const app = createApp(db);
 
+// sw.js must never be HTTP-cached — iOS Safari won't re-check otherwise
+app.use("/sw.js", async (c, next) => {
+  await next();
+  c.header("Cache-Control", "no-store");
+});
+
 // Serve frontend static files in production (must come after API routes)
 app.use("/*", serveStatic({ root: "../frontend/dist" }));
 app.get("*", serveStatic({ path: "../frontend/dist/index.html" }));

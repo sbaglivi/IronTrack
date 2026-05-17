@@ -57,6 +57,7 @@ const App = () => {
       if (document.visibilityState === 'visible') {
         void pullSync();
         void flushOutbox();
+        void navigator.serviceWorker?.getRegistration().then(r => r?.update());
       }
     };
     const onOnline = () => { void flushOutbox(); };
