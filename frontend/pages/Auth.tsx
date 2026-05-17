@@ -45,29 +45,26 @@ const Auth: React.FC<AuthProps> = ({ onLogin, modal = false }) => {
     <div className="w-full max-w-md">
       {!modal && (
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-6 shadow-xl shadow-indigo-600/20">
-            <Dumbbell className="text-white w-10 h-10" />
-          </div>
-          <h1 className="text-4xl font-extrabold tracking-tight mb-2">IronTrack</h1>
-          <p className="text-zinc-400">Your journey starts with a single set.</p>
+          <h1 className="page-title text-4xl font-extrabold tracking-tight mb-2">IronTrack</h1>
+          <p className="page-subtitle">Your journey starts with a single set.</p>
         </div>
       )}
 
-      <div className="bg-zinc-900 p-8 rounded-3xl border border-zinc-800 shadow-2xl">
+      <div className="surface p-8 rounded-2xl">
         {modal && (
-          <p className="text-sm text-zinc-400 mb-6">Your session expired. Sign in to resume sync — your local data is safe.</p>
+          <p className="page-subtitle text-sm mb-6">Your session expired. Sign in to resume sync - your local data is safe.</p>
         )}
 
         {!modal && (
-          <div className="flex border-b border-zinc-800 mb-8">
+          <div className="surface-muted flex rounded-xl p-1 mb-8">
             <button
-              className={`flex-1 pb-4 text-sm font-bold uppercase tracking-widest transition-colors ${isLogin ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-zinc-500'}`}
+              className={`flex-1 rounded-lg py-2.5 text-sm font-bold uppercase tracking-widest transition-colors ${isLogin ? 'bg-white text-[var(--color-primary)] shadow-sm' : 'page-subtitle'}`}
               onClick={() => setIsLogin(true)}
             >
               Login
             </button>
             <button
-              className={`flex-1 pb-4 text-sm font-bold uppercase tracking-widest transition-colors ${!isLogin ? 'text-indigo-500 border-b-2 border-indigo-500' : 'text-zinc-500'}`}
+              className={`flex-1 rounded-lg py-2.5 text-sm font-bold uppercase tracking-widest transition-colors ${!isLogin ? 'bg-white text-[var(--color-primary)] shadow-sm' : 'page-subtitle'}`}
               onClick={() => setIsLogin(false)}
             >
               Sign Up
@@ -77,22 +74,22 @@ const Auth: React.FC<AuthProps> = ({ onLogin, modal = false }) => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Username</label>
+            <label className="field-label block text-xs font-bold uppercase tracking-widest mb-2">Username</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all text-white"
+              className="form-field w-full rounded-xl px-4 py-3 focus:outline-none transition-all"
               placeholder="Enter username"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500 mb-2">Password</label>
+            <label className="field-label block text-xs font-bold uppercase tracking-widest mb-2">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all text-white"
+              className="form-field w-full rounded-xl px-4 py-3 focus:outline-none transition-all"
               placeholder="••••••••"
             />
           </div>
@@ -102,7 +99,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, modal = false }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 group transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary w-full font-bold py-4 rounded-xl flex items-center justify-center gap-2 group transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
             {!loading && <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />}
@@ -115,7 +112,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, modal = false }) => {
   if (modal) return card;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-950">
+    <div className="auth-backdrop min-h-screen flex items-center justify-center p-4">
       {card}
     </div>
   );

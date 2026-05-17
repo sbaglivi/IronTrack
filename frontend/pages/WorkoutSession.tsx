@@ -1,10 +1,21 @@
 
 import React, { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { useLocation, useSearchParams } from 'wouter';
-import { Plus, Save, Trash2, X, MoreVertical, Search, Clock, AlertTriangle, CheckCircle2, Check, GripVertical, Link2 } from 'lucide-react';
+import { Plus, Save, Trash2, X, Search, AlertTriangle, CheckCircle2, Check, GripVertical, Link2 } from 'lucide-react';
 import { db } from '../services/db';
 import { InstanceExercise, WorkoutSet, Exercise, User } from '../types';
 import NumericInput from '../components/NumericInput';
+
+const WORKOUT_QUOTES = [
+  'Lift heavy, count honestly.',
+  'Future you gets the receipt.',
+  'Strong plans. Stronger sets.',
+  'The bar remembers.',
+  'Tiny plates still count.',
+  'Make it boring. Make it work.',
+  'One more clean rep.',
+  'Good form is the flex.',
+];
 
 const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   const [, navigate] = useLocation();
@@ -15,10 +26,8 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   const [name, setName] = useState('');
   const [exercises, setExercises] = useState<InstanceExercise[]>([]);
   const [notes, setNotes] = useState('');
-  const [startTime] = useState(Date.now());
-  const [timerOffset, setTimerOffset] = useState(0);
-  const [timer, setTimer] = useState(0);
   const [draftId, setDraftId] = useState<string | null>(null);
+  const [workoutQuote] = useState(() => WORKOUT_QUOTES[Math.floor(Math.random() * WORKOUT_QUOTES.length)]);
 
   // For adding new exercises to the instance
   const [showAddEx, setShowAddEx] = useState(false);
@@ -52,12 +61,6 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
   // Original workout date (preserved across saves)
   const sessionDate = useRef(Date.now());
 
-  // Timer
-  useEffect(() => {
-    const interval = setInterval(() => setTimer(timerOffset + Math.floor((Date.now() - startTime) / 1000)), 1000);
-    return () => clearInterval(interval);
-  }, [startTime, timerOffset]);
-
   // Initialize session: resume draft or start fresh
   useEffect(() => {
     const initSession = async () => {
@@ -71,7 +74,6 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
             setNotes(existingDraft.notes);
             setDraftId(existingDraft.id);
             sessionDate.current = existingDraft.date;
-            setTimerOffset(Math.floor((Date.now() - existingDraft.date) / 1000));
             // Resumed draft counts as having work to preserve
             hasModified.current = true;
             return;
@@ -406,202 +408,176 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
     navigate('/history');
   };
 
-  const formatTimer = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hrs > 0 ? hrs + ':' : ''}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
   return (
-    <div className="space-y-6 pb-20 animate-in slide-in-from-right-4 duration-300" onClick={() => { if (selectionExIdx !== null) clearSelection(); }}>
-      <header>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => handleNameChange(e.target.value)}
-          className="text-3xl font-extrabold bg-transparent outline-none w-full border-b border-transparent focus:border-zinc-800 transition-colors text-white"
-          placeholder="Workout Name"
-        />
+    <div className="track-page animate-in slide-in-from-right-4 duration-300" onClick={() => { if (selectionExIdx !== null) clearSelection(); }}>
+      <header className="workout-title-slice">
+        <div className="workout-title-inner">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => handleNameChange(e.target.value)}
+            className="workout-name-input"
+            placeholder="Workout Name"
+          />
+          <p className="sub workout-quote">{workoutQuote}</p>
+        </div>
       </header>
 
-      <div className="flex flex-col">
-        {exercises.map((ex, exIdx) => {
-          const isSelecting = selectionExIdx === exIdx;
-          const isInSuperset = !!ex.supersetId;
-          const isFirstInGroup = isInSuperset && (exIdx === 0 || exercises[exIdx - 1].supersetId !== ex.supersetId);
-          const nextEx = exercises[exIdx + 1];
-          const isLinkedToNext = isInSuperset && nextEx?.supersetId === ex.supersetId;
-          return (
-          <Fragment key={exIdx}>
-          {exIdx > 0 && (
-            <div className={`flex items-center gap-2 px-3 relative z-10 ${isInSuperset && exercises[exIdx - 1].supersetId === ex.supersetId ? 'my-0.5' : 'my-2'}`}>
-              <div className={`flex-1 h-px ${isInSuperset && exercises[exIdx - 1].supersetId === ex.supersetId ? 'bg-indigo-500/30' : 'bg-transparent'}`} />
-              <button
-                onClick={() => toggleSuperset(exIdx - 1)}
-                className={`flex items-center justify-center w-5 h-5 rounded-full border transition-all ${
-                  isInSuperset && exercises[exIdx - 1].supersetId === ex.supersetId
-                    ? 'border-indigo-500/60 text-indigo-400 bg-indigo-500/10 hover:bg-red-500/10 hover:border-red-500/40 hover:text-red-400'
-                    : 'border-zinc-700 text-zinc-600 hover:border-zinc-500 hover:text-zinc-400'
-                }`}
-              >
-                <Link2 size={10} />
-              </button>
-              <div className={`flex-1 h-px ${isInSuperset && exercises[exIdx - 1].supersetId === ex.supersetId ? 'bg-indigo-500/30' : 'bg-transparent'}`} />
-            </div>
-          )}
-          <section
-            className={`bg-zinc-900 rounded-2xl overflow-hidden shadow-sm ${
-              isInSuperset ? 'border border-indigo-500/30 border-l-2 border-l-indigo-500' : 'border border-zinc-800'
-            }`}
-            onClick={isSelecting ? (e) => e.stopPropagation() : undefined}
-          >
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-zinc-800/20">
-              {isSelecting ? (
-                <>
-                  <span className="text-sm font-bold text-indigo-400">
-                    {selectedSetIds.size} selected
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button onClick={removeSelectedSets} className="text-zinc-400 hover:text-red-400 transition-colors">
-                      <Trash2 size={16} />
-                    </button>
-                    <button onClick={clearSelection} className="text-zinc-400 hover:text-white transition-colors">
-                      <X size={16} />
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2 min-w-0">
-                    {isFirstInGroup && (
-                      <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-indigo-300 bg-indigo-500/15 px-1.5 py-0.5 rounded">
-                        Superset
-                      </span>
-                    )}
-                    <h3 className="text-base font-bold text-indigo-400 truncate">{ex.name}</h3>
-                  </div>
-                  <button onClick={() => removeExercise(exIdx)} className="text-zinc-500 hover:text-red-400 transition-colors ml-2 shrink-0">
-                    <Trash2 size={16} />
-                  </button>
-                </>
-              )}
-            </div>
+      <section className="workout-panel">
+        <div className="template-panel-head">
+          <h2 className="panel-title">Exercises</h2>
+          <p className="panel-note">Long press the right handle to select sets.</p>
+        </div>
 
-            <div className="px-3 pt-2 pb-3 space-y-1.5">
-              <div className="grid grid-cols-12 gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 px-2">
-                <div className="col-span-1 text-center">#</div>
-                <div className="col-span-5 text-center">Weight (kg)</div>
-                <div className="col-span-5 text-center">Reps</div>
-                <div className="col-span-1"></div>
-              </div>
+        <div className="workout-exercise-list">
+          {exercises.map((ex, exIdx) => {
+            const isSelecting = selectionExIdx === exIdx;
+            const isInSuperset = !!ex.supersetId;
+            const isFirstInGroup = isInSuperset && (exIdx === 0 || exercises[exIdx - 1].supersetId !== ex.supersetId);
+            const isLinkedFromPrevious = isInSuperset && exercises[exIdx - 1]?.supersetId === ex.supersetId;
+            return (
+              <Fragment key={exIdx}>
+                {exIdx > 0 && (
+                  <div className={`superset-connector ${isLinkedFromPrevious ? 'active' : ''}`}>
+                    <span />
+                    <button
+                      onClick={() => toggleSuperset(exIdx - 1)}
+                      className="superset-toggle"
+                      aria-label={isLinkedFromPrevious ? 'Remove superset link' : 'Create superset link'}
+                    >
+                      <Link2 size={12} />
+                    </button>
+                    <span />
+                  </div>
+                )}
 
-              {ex.sets.map((set, setIdx) => {
-                const isSelected = isSelecting && selectedSetIds.has(set.id);
-                return (
-                <div
-                  key={set.id}
-                  className={`grid grid-cols-12 gap-2 items-center py-1 px-2 rounded-lg transition-all select-none
-                    ${isSelected ? 'bg-indigo-500/10 ring-1 ring-inset ring-indigo-500/30' : 'bg-zinc-950/50'}`}
-                  onContextMenu={(e) => e.preventDefault()}
+                <section
+                  className={`workout-exercise ${isInSuperset ? 'is-superset' : ''}`}
+                  onClick={isSelecting ? (e) => e.stopPropagation() : undefined}
                 >
-                  <div className="col-span-1 flex items-center justify-center">
-                    <span className="font-bold text-zinc-500 text-sm">{setIdx + 1}</span>
-                  </div>
-                  <div className="col-span-5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-                    <NumericInput
-                      value={set.weight}
-                      allowDecimal
-                      onChange={(v) => updateSet(exIdx, setIdx, { weight: v })}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-1.5 text-center font-bold text-white focus:ring-1 focus:ring-indigo-500 outline-none"
-                    />
-                  </div>
-                  <div className="col-span-5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-                    <NumericInput
-                      value={set.reps}
-                      onChange={(v) => updateSet(exIdx, setIdx, { reps: v })}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-1.5 text-center font-bold text-white focus:ring-1 focus:ring-indigo-500 outline-none"
-                    />
-                  </div>
-                  <div
-                    className="col-span-1 flex items-center justify-center h-full touch-none cursor-pointer"
-                    onClick={() => handleSetClick(exIdx, set.id)}
-                    onPointerDown={() => handleSetPointerDown(exIdx, set.id)}
-                    onPointerUp={handleSetPointerUp}
-                    onPointerCancel={handleSetPointerUp}
-                  >
+                  <div className="workout-exercise-top">
                     {isSelecting ? (
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
-                        ${isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-zinc-600'}`}>
-                        {isSelected && <Check size={10} strokeWidth={3} className="text-white" />}
-                      </div>
+                      <>
+                        <span className="selection-count">{selectedSetIds.size} selected</span>
+                        <div className="template-actions">
+                          <button onClick={removeSelectedSets} className="template-icon-button danger" aria-label="Remove selected sets">
+                            <Trash2 size={16} />
+                          </button>
+                          <button onClick={clearSelection} className="template-icon-button" aria-label="Clear selected sets">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </>
                     ) : (
-                      <GripVertical size={16} className="text-zinc-600" />
+                      <>
+                        <div className="workout-exercise-name">
+                          {isFirstInGroup && <span className="superset-badge">Superset</span>}
+                          <h3>{ex.name}</h3>
+                        </div>
+                        <button onClick={() => removeExercise(exIdx)} className="template-icon-button danger" aria-label={`Remove ${ex.name}`}>
+                          <Trash2 size={16} />
+                        </button>
+                      </>
                     )}
                   </div>
-                </div>
-              )})}
 
-              <button
-                onClick={() => addSet(exIdx)}
-                className="w-full py-1.5 bg-zinc-800/50 border border-dashed border-zinc-700 rounded-lg text-zinc-400 font-bold text-sm hover:bg-zinc-800 transition-all active:scale-[0.98]"
-              >
-                + Add Set
-              </button>
-            </div>
-          </section>
-          </Fragment>
-        )})}
-      </div>
+                  <div className="sets">
+                    <div className="set-header">
+                      <div>Set</div>
+                      <div>Weight</div>
+                      <div>Reps</div>
+                      <div />
+                    </div>
 
-      <div className="space-y-4">
-        <button
-          onClick={() => setShowAddEx(true)}
-          className="w-full py-5 border-2 border-dashed border-zinc-800 rounded-3xl flex items-center justify-center gap-2 text-zinc-500 font-bold hover:border-indigo-500 hover:text-indigo-400 transition-all"
-        >
-          <Plus size={20} />
-          Add Exercise
-        </button>
+                    {ex.sets.map((set, setIdx) => {
+                      const isSelected = isSelecting && selectedSetIds.has(set.id);
+                      return (
+                        <div
+                          key={set.id}
+                          className={`set-row ${isSelected ? 'selected' : ''}`}
+                          onContextMenu={(e) => e.preventDefault()}
+                        >
+                          <div className="set-no">{setIdx + 1}</div>
+                          <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                            <NumericInput
+                              value={set.weight}
+                              allowDecimal
+                              onChange={(v) => updateSet(exIdx, setIdx, { weight: v })}
+                              className="set-input"
+                            />
+                          </div>
+                          <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                            <NumericInput
+                              value={set.reps}
+                              onChange={(v) => updateSet(exIdx, setIdx, { reps: v })}
+                              className="set-input"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className={`set-handle ${isSelected ? 'selected' : ''}`}
+                            onClick={() => handleSetClick(exIdx, set.id)}
+                            onPointerDown={() => handleSetPointerDown(exIdx, set.id)}
+                            onPointerUp={handleSetPointerUp}
+                            onPointerCancel={handleSetPointerUp}
+                            aria-label={isSelected ? `Set ${setIdx + 1} selected` : `Select set ${setIdx + 1}`}
+                          >
+                            {isSelecting ? (
+                              <span className={`set-select-dot ${isSelected ? 'selected' : ''}`}>
+                                {isSelected && <Check size={11} strokeWidth={3} />}
+                              </span>
+                            ) : (
+                              <GripVertical size={17} />
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
 
-        <section className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
-          <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">Notes</label>
-          <textarea
-            value={notes}
-            onChange={(e) => handleNotesChange(e.target.value)}
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-white focus:ring-2 focus:ring-indigo-500/50 outline-none min-h-[100px]"
-            placeholder="How did it feel today?"
-          />
-        </section>
-      </div>
+                    <button onClick={() => addSet(exIdx)} className="add-set-button">
+                      + Add Set
+                    </button>
+                  </div>
+                </section>
+              </Fragment>
+            );
+          })}
+
+          <button onClick={() => setShowAddEx(true)} className="add-exercise-bottom">
+            <span className="button-plus">+</span>
+            Add Exercise
+          </button>
+        </div>
+      </section>
 
       {/* Add Exercise Modal */}
       {showAddEx && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end md:items-center justify-center p-4">
-          <div className="bg-zinc-900 w-full max-w-lg rounded-t-[2.5rem] md:rounded-[2.5rem] border border-zinc-800 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
-            <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white">Add Exercise</h3>
-              <button onClick={() => setShowAddEx(false)} className="text-zinc-500 hover:text-white">
+        <div className="modal-backdrop">
+          <div className="modal-card modal-card-large animate-in slide-in-from-bottom-8 duration-300">
+            <div className="modal-head">
+              <h3>Add Exercise</h3>
+              <button onClick={() => setShowAddEx(false)} className="template-icon-button" aria-label="Close add exercise">
                 <X size={24} />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="modal-body">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+                <Search className="modal-search-icon" size={18} />
                 <input
                   type="text"
                   autoFocus
                   value={exSearch}
                   onChange={(e) => setExSearch(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl py-3 pl-12 pr-4 text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  className="modal-search-input"
                   placeholder="Search exercise..."
                 />
               </div>
-              <div className="max-h-64 overflow-y-auto space-y-2">
+              <div className="modal-option-list">
                 {/* New Prominent "Create" option */}
                 {exSearch.trim().length > 0 && !allExercises.some(e => e.name.toLowerCase() === exSearch.trim().toLowerCase()) && (
                   <button
                     onClick={() => addExercise(exSearch.trim())}
-                    className="w-full text-left p-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-600/30 rounded-2xl text-indigo-400 font-bold transition-all flex items-center justify-between group"
+                    className="modal-option primary"
                   >
                     <div className="flex items-center gap-3">
                       <Plus size={18} className="group-hover:scale-110 transition-transform" />
@@ -614,15 +590,15 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
                   <button
                     key={ex.id}
                     onClick={() => addExercise(ex)}
-                    className="w-full text-left p-4 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 rounded-2xl font-bold transition-all flex items-center justify-between text-white"
+                    className="modal-option"
                   >
                     <span>{ex.name}</span>
-                    <Plus size={16} className="text-zinc-600" />
+                    <Plus size={16} />
                   </button>
                 ))}
 
                 {exSearch.trim() === '' && (
-                  <p className="p-10 text-center text-zinc-500 text-sm">Type an exercise name to search or create a new one.</p>
+                  <p className="modal-empty">Type an exercise name to search or create a new one.</p>
                 )}
               </div>
             </div>
@@ -632,28 +608,35 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
 
       {/* Finish Confirmation Modal */}
       {showFinishModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-zinc-900 w-full max-w-sm rounded-[2.5rem] border border-zinc-800 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
-            <div className="p-8 text-center space-y-4">
-              <div className="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center mx-auto">
-                <CheckCircle2 size={32} className="text-indigo-400" />
+        <div className="modal-backdrop">
+          <div className="modal-card animate-in slide-in-from-bottom-8 duration-300">
+            <div className="modal-summary">
+              <div className="modal-icon success">
+                <CheckCircle2 size={32} />
               </div>
-              <h3 className="text-xl font-bold text-white">Finish Workout?</h3>
-              <p className="text-zinc-400 text-sm">
+              <h3>Finish Workout?</h3>
+              <p>
                 {exercises.length} {exercises.length === 1 ? 'exercise' : 'exercises'} · {exercises.reduce((n, ex) => n + ex.sets.length, 0)} sets
               </p>
             </div>
-            <div className="p-6 pt-0 space-y-3">
+            <div className="modal-body pt-0">
+              <label className="field-label block text-xs font-black uppercase tracking-widest mb-2">Notes</label>
+              <textarea
+                value={notes}
+                onChange={(e) => handleNotesChange(e.target.value)}
+                className="modal-notes"
+                placeholder="How did it feel today?"
+              />
               <button
                 onClick={finishWorkout}
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                className="modal-action primary"
               >
                 <CheckCircle2 size={18} />
                 Save Workout
               </button>
               <button
                 onClick={() => setShowFinishModal(false)}
-                className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all active:scale-[0.98]"
+                className="modal-action secondary"
               >
                 Keep Going
               </button>
@@ -664,35 +647,35 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
 
       {/* Discard/Save Confirmation Modal */}
       {showDiscardModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-zinc-900 w-full max-w-sm rounded-[2.5rem] border border-zinc-800 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
-            <div className="p-8 text-center space-y-4">
-              <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center mx-auto">
-                <AlertTriangle size={32} className="text-amber-400" />
+        <div className="modal-backdrop">
+          <div className="modal-card animate-in slide-in-from-bottom-8 duration-300">
+            <div className="modal-summary">
+              <div className="modal-icon warning">
+                <AlertTriangle size={32} />
               </div>
-              <h3 className="text-xl font-bold text-white">Leave Workout?</h3>
-              <p className="text-zinc-400 text-sm">
+              <h3>Leave Workout?</h3>
+              <p>
                 You have an active workout in progress. What would you like to do?
               </p>
             </div>
-            <div className="p-6 pt-0 space-y-3">
+            <div className="modal-body pt-0">
               <button
                 onClick={handleSaveAndExit}
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                className="modal-action primary"
               >
                 <Save size={18} />
                 Save & Exit
               </button>
               <button
                 onClick={handleDiscard}
-                className="w-full py-4 bg-red-600/10 hover:bg-red-600/20 border border-red-600/30 text-red-400 font-bold rounded-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                className="modal-action danger"
               >
                 <Trash2 size={18} />
                 Discard Workout
               </button>
               <button
                 onClick={() => setShowDiscardModal(false)}
-                className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-2xl transition-all active:scale-[0.98]"
+                className="modal-action secondary"
               >
                 Keep Working
               </button>
@@ -702,21 +685,15 @@ const WorkoutSession: React.FC<{ user: User }> = ({ user }) => {
       )}
 
       {/* Workout Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-zinc-900/95 backdrop-blur border-t border-zinc-800 z-40 flex items-center justify-between px-4 h-16">
+      <div className="workout-action-bar">
         <button
           onClick={handleAttemptLeave}
-          className="w-10 h-10 flex items-center justify-center rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
+          className="workout-bar-button exit-action"
         >
-          <X size={20} />
+          <X size={18} />
+          Exit
         </button>
-        <div className="flex items-center gap-2 bg-indigo-500/10 text-indigo-400 px-4 py-1.5 rounded-full font-mono font-bold text-sm">
-          <Clock size={15} />
-          {formatTimer(timer)}
-        </div>
-        <button
-          onClick={handleFinishClick}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl font-bold shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
-        >
+        <button onClick={handleFinishClick} className="workout-bar-button finish-action">
           Finish
         </button>
       </div>

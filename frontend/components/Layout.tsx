@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { ClipboardList, History, LogOut, Dumbbell, Download } from 'lucide-react';
 import SyncIndicator from './SyncIndicator';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
 
@@ -16,8 +15,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
   const { canInstall, triggerInstall } = useInstallPrompt();
 
   const navItems = [
-    { path: '/templates', icon: ClipboardList, label: 'Templates' },
-    { path: '/history', icon: History, label: 'History' },
+    { path: '/templates', label: 'Train', active: location.startsWith('/templates') || location === '/' },
+    { path: '/history', label: 'Review', active: location.startsWith('/history') },
   ];
 
   if (!user) return <>{children}</>;
@@ -25,52 +24,48 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
   const isWorkout = location.startsWith('/workout');
 
   return (
-    <div className={`flex flex-col min-h-screen bg-zinc-950 ${isWorkout ? '' : 'pb-20 md:pb-0 md:pl-64'}`}>
+    <div className={`app-canvas flex flex-col ${isWorkout ? '' : 'pb-20 md:pb-0 md:pl-64'}`}>
       {/* Desktop Sidebar */}
-      <aside className={`${isWorkout ? 'hidden' : 'hidden md:flex'} flex-col fixed left-0 top-0 bottom-0 w-64 bg-zinc-900 border-r border-zinc-800 p-6`}>
-        <Link to="/templates" className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
-            <Dumbbell className="text-white w-6 h-6" />
+      <aside className={`${isWorkout ? 'hidden' : 'hidden md:flex'} app-sidebar flex-col fixed left-0 top-0 bottom-0 w-64 border-r p-6`}>
+        <Link to="/templates" className="app-brand mb-10">
+          <div className="brand-mark">
+            IT
           </div>
-          <h1 className="text-xl font-bold tracking-tight">IronTrack</h1>
+          <div>
+            <strong>IronTrack</strong>
+            <span>Plan workouts</span>
+          </div>
         </Link>
 
-        <nav className="flex-1 space-y-2">
+        <nav className="app-nav flex-1">
           {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
-                }`}
+                className={item.active ? 'active' : ''}
               >
-                <Icon size={20} />
-                <span className="font-medium">{item.label}</span>
+                {item.label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="space-y-3">
+        <div className="app-sidebar-footer">
           <SyncIndicator />
           {canInstall && (
             <button
               onClick={triggerInstall}
-              className="w-full flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-lg transition-colors"
+              className="app-nav-button"
             >
-              <Download size={20} />
-              <span className="font-medium">Install App</span>
+              Install
             </button>
           )}
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+            className="app-nav-button danger"
           >
-            <LogOut size={20} />
-            <span className="font-medium">Sign Out</span>
+            Logout
           </button>
         </div>
       </aside>
@@ -81,41 +76,32 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
       </main>
 
       {/* Mobile Bottom Nav */}
-      <nav className={`${isWorkout ? 'hidden' : ''} md:hidden fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 flex justify-around items-center h-16 px-4 z-50`}>
+      <nav className={`${isWorkout ? 'hidden' : ''} mobile-nav md:hidden fixed bottom-0 left-0 right-0 border-t flex justify-around items-center h-16 px-4 z-50`}>
         <button
           onClick={onLogout}
-          className="relative flex flex-col items-center justify-center w-full h-full space-y-1 text-zinc-500"
+          className="mobile-nav-item danger"
         >
-          <div className="relative">
-            <LogOut size={24} />
-            <div className="absolute -top-0.5 -right-0.5">
-              <SyncIndicator compact />
-            </div>
-          </div>
-          <span className="text-[10px] uppercase font-bold tracking-wider">Out</span>
+          <span className="flex items-center gap-1.5">
+            Logout
+            <SyncIndicator compact />
+          </span>
         </button>
         {canInstall && (
           <button
             onClick={triggerInstall}
-            className="flex flex-col items-center justify-center w-full h-full space-y-1 text-indigo-400"
+            className="mobile-nav-item"
           >
-            <Download size={24} />
-            <span className="text-[10px] uppercase font-bold tracking-wider">Install</span>
+            Install
           </button>
         )}
         {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = location === item.path;
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-                isActive ? 'text-indigo-500' : 'text-zinc-500'
-              }`}
+              className={`mobile-nav-item ${item.active ? 'active' : ''}`}
             >
-              <Icon size={24} />
-              <span className="text-[10px] uppercase font-bold tracking-wider">{item.label}</span>
+              {item.label}
             </Link>
           );
         })}

@@ -75,8 +75,8 @@ const App = () => {
 
   if (isLoading) {
     return (
-      <div class="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <div class="text-zinc-400 text-sm">Syncing…</div>
+      <div class="app-canvas flex items-center justify-center">
+        <div class="surface rounded-2xl px-5 py-3 text-sm font-semibold page-subtitle">Syncing...</div>
       </div>
     );
   }
@@ -85,7 +85,7 @@ const App = () => {
     <Router hook={useHashLocation}>
       {showAuthModal && (
         <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/45 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
           onClick={() => setShowAuthModal(false)}
         >
           <div onClick={(e) => e.stopPropagation()}>

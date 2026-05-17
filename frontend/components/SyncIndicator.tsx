@@ -15,10 +15,10 @@ function formatRelative(ms: number | null): string {
 
 const STATUS_DOT: Record<SyncStatus, string> = {
   synced: 'bg-emerald-500',
-  syncing: 'bg-indigo-400 animate-pulse',
+  syncing: 'bg-[var(--color-primary)] animate-pulse',
   offline: 'bg-amber-400',
   'auth-required': 'bg-red-400',
-  'update-available': 'bg-indigo-500 animate-pulse',
+  'update-available': 'bg-[var(--color-primary)] animate-pulse',
 };
 
 const STATUS_TEXT: Record<SyncStatus, string> = {
@@ -60,7 +60,7 @@ const SyncIndicator: React.FC<Props> = ({ compact = false }) => {
       <div className="relative">
         {dot}
         {state.pendingCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-500 rounded-full text-[8px] font-bold text-white flex items-center justify-center leading-none">
+          <span className="absolute -top-1 -right-1 w-3 h-3 bg-[var(--color-primary)] rounded-full text-[8px] font-bold text-white flex items-center justify-center leading-none">
             {state.pendingCount > 9 ? '9+' : state.pendingCount}
           </span>
         )}
@@ -71,17 +71,17 @@ const SyncIndicator: React.FC<Props> = ({ compact = false }) => {
   const timeStr = formatRelative(state.lastSyncAt);
 
   return (
-    <div className="px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-xl space-y-2 text-xs">
+    <div className="surface-muted px-4 py-3 rounded-xl space-y-2 text-xs">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {dot}
-          <span className="text-zinc-400 truncate">
+          <span className="page-subtitle truncate">
             {STATUS_TEXT[state.status]}
             {state.status === 'synced' && timeStr ? ` · ${timeStr}` : ''}
           </span>
         </div>
         {state.pendingCount > 0 && (
-          <span className="flex-shrink-0 bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded-full">
+          <span className="chip-muted flex-shrink-0 px-1.5 py-0.5 rounded-full">
             {state.pendingCount} pending
           </span>
         )}
@@ -90,7 +90,7 @@ const SyncIndicator: React.FC<Props> = ({ compact = false }) => {
       {state.status === 'update-available' && (
         <button
           onClick={applyUpdate}
-          className="w-full text-left text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1.5"
+          className="w-full text-left text-[var(--color-primary)] transition-colors flex items-center gap-1.5"
         >
           <RefreshCw size={11} />
           Reload to update
@@ -100,7 +100,7 @@ const SyncIndicator: React.FC<Props> = ({ compact = false }) => {
       {(state.status === 'synced' || state.status === 'offline') && (
         <button
           onClick={handleSyncNow}
-          className="text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1.5"
+          className="page-subtitle hover:text-[var(--color-ink)] transition-colors flex items-center gap-1.5"
         >
           <RefreshCw size={11} />
           Sync now
@@ -110,7 +110,7 @@ const SyncIndicator: React.FC<Props> = ({ compact = false }) => {
       {state.status === 'auth-required' && (
         <button
           onClick={requestAuth}
-          className="text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="page-subtitle hover:text-[var(--color-ink)] transition-colors"
         >
           Tap to sign in
         </button>

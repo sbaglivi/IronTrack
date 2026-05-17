@@ -23,3 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 *.db
+*.db-shm
+*.db-wal
+.agents
+.claude
+skills-lock.json
